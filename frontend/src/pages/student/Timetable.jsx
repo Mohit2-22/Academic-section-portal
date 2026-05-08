@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import StudentLayout from "../../components/StudentLayout";
-import { Calendar, Clock, Users, MapPin, Download, Info, BookOpen, AlertCircle } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, Download, Info, BookOpen, AlertCircle, UserX } from "lucide-react";
 import { studentAPI } from "../../services/api";
 
 const formatTime12 = (time24) => {
@@ -32,21 +32,30 @@ const StudentTimetable = () => {
 
   const timeSlots = React.useMemo(() => {
     if (timetableSlots.length === 0) {
-      return [
-        { label: "Slot 1", start: "13:25", end: "14:20" },
-        { label: "Slot 2", start: "14:20", end: "15:15" },
-        { label: "Slot 3", start: "15:15", end: "16:10" },
-        { label: "LUNCH", start: "16:10", end: "16:30" },
-        { label: "Slot 4", start: "16:30", end: "17:20" },
-        { label: "Slot 5", start: "17:20", end: "18:10" },
-      ];
+      return [];
     }
     const uniqueTimes = [...new Set(timetableSlots.map(s => s.start_time.substring(0, 5)))].sort();
-    return uniqueTimes.map((time, idx) => ({
-      label: time === "16:10" ? "LUNCH" : `Slot ${idx + 1}`,
-      start: time,
-      end: timetableSlots.find(s => s.start_time.substring(0, 5) === time)?.end_time?.substring(0, 5) || "",
-    }));
+    const slotLabels = ["Slot 1", "Slot 2", "Slot 3", "Slot 4", "Slot 5", "Slot 6", "Slot 7", "Slot 8"];
+    let idx = 0;
+    return uniqueTimes.map((time) => {
+      const matchingSlots = timetableSlots.filter(s => s.start_time.substring(0, 5) === time);
+      const firstEnd = matchingSlots[0]?.end_time?.substring(0, 5) || "";
+      const startHour = parseInt(time.split(":")[0], 10);
+      const endHour = parseInt(firstEnd.split(":")[0], 10);
+      if (startHour >= 12 && startHour < 14 && endHour >= 13 && endHour <= 15) {
+        const isLunch = matchingSlots.some(s => {
+          const e = parseInt(s.end_time.substring(0, 5).split(":")[0], 10);
+          const ss = parseInt(s.start_time.substring(0, 5).split(":")[0], 10);
+          return (e - ss) >= 1 || s.start_time.substring(0, 5) === "14:20";
+        });
+        if (isLunch && time === "14:20") {
+          return { label: "LUNCH", start: time, end: firstEnd };
+        }
+      }
+      const label = slotLabels[idx] || `Slot ${idx + 1}`;
+      idx++;
+      return { label, start: time, end: firstEnd };
+    });
   }, [timetableSlots]);
 
   useEffect(() => {
@@ -85,6 +94,23 @@ const StudentTimetable = () => {
     }
   });
 
+  const shiftInfo = React.useMemo(() => {
+    if (timetableSlots.length === 0) return null;
+    const times = timetableSlots.map(s => s.start_time.substring(0, 5)).sort();
+    const endTime = timetableSlots.map(s => s.end_time.substring(0, 5)).sort();
+    const start = times[0] || "00:00";
+    const end = endTime[endTime.length - 1] || "00:00";
+    const startHour = parseInt(start.split(":")[0], 10);
+    const isMorning = startHour < 12;
+    const lunchTimes = timetableSlots.filter(s => {
+      const sh = parseInt(s.start_time.substring(0, 5).split(":")[0], 10);
+      const eh = parseInt(s.end_time.substring(0, 5).split(":")[0], 10);
+      return (sh >= 12 && sh <= 14 && (eh - sh) >= 1);
+    });
+    const lunchTime = lunchTimes.length > 0 ? formatTime12(lunchTimes[0].start_time.substring(0, 5)) : null;
+    return { start: formatTime12(start), end: formatTime12(end), lunchTime, isMorning };
+  }, [timetableSlots]);
+
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
   return (
@@ -116,13 +142,15 @@ const StudentTimetable = () => {
           </div>
 
           {/* ── Info Banner ──────────────────────────────────── */}
-          <div className="mb-6 flex items-center gap-3 p-4 rounded-xl border border-[var(--gu-gold)]/20 bg-[var(--gu-gold)]/5">
-            <Info className="w-4 h-4 text-[var(--gu-gold)] flex-shrink-0" />
-            <p className="text-white/50 text-xs">
-              Lectures: <span className="text-white/70 font-semibold">{formatTime12("13:25")} – {formatTime12("18:25")}</span>
-              &nbsp;·&nbsp; 55-min sessions &nbsp;·&nbsp; Lunch at <span className="text-white/70 font-semibold">{formatTime12("16:10")}</span>
-            </p>
-          </div>
+          {shiftInfo && (
+            <div className="mb-6 flex items-center gap-3 p-4 rounded-xl border border-[var(--gu-gold)]/20 bg-[var(--gu-gold)]/5">
+              <Info className="w-4 h-4 text-[var(--gu-gold)] flex-shrink-0" />
+              <p className="text-white/50 text-xs">
+                {shiftInfo.isMorning ? "Morning" : "Noon"} Shift: <span className="text-white/70 font-semibold">{shiftInfo.start} – {shiftInfo.end}</span>
+                &nbsp;·&nbsp; 55-min sessions {shiftInfo.lunchTime && <>·&nbsp; Lunch at <span className="text-white/70 font-semibold">{shiftInfo.lunchTime}</span></>}
+              </p>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
@@ -200,10 +228,12 @@ const StudentTimetable = () => {
                             )}
                           </td>
 
-                          {days.map(day => {
+                            {days.map(day => {
                             const cellData = getSlotContent(day, slot.start);
                             const color = cellData ? (subjectColorMap[cellData.subject_code] || SUBJECT_COLORS[0]) : null;
                             const isActiveDay = activeDay === day;
+                            const isProxy = cellData?.proxy_info && cellData.proxy_info.status === "Active";
+                            const proxyFacultyName = isProxy ? cellData.proxy_info.proxy_faculty_name : null;
 
                             if (slot.label === "LUNCH") {
                               return (
@@ -218,7 +248,16 @@ const StudentTimetable = () => {
                             return (
                               <td key={day} className={`p-2 border-l border-white/5 ${isActiveDay ? 'bg-[var(--gu-gold)]/3' : ''}`}>
                                 {cellData && color ? (
-                                  <div className={`${color.bg} ${color.border} border rounded-xl p-2.5 relative overflow-hidden group hover:scale-[1.02] transition-transform`}>
+                                  <div className={`${color.bg} ${color.border} border rounded-xl p-2.5 relative overflow-hidden group hover:scale-[1.02] transition-transform ${isProxy ? "opacity-60" : ""}`}>
+                                    {isProxy && (
+                                      <div className="absolute inset-0 bg-black/60 rounded-xl z-10 flex flex-col items-center justify-center backdrop-blur-[1px]">
+                                        <UserX className="w-5 h-5 text-white/70 mb-1" />
+                                        <span className="text-white/80 text-[8px] font-bold uppercase tracking-wider">PROXY</span>
+                                        {proxyFacultyName && (
+                                          <span className="text-[var(--gu-gold)] text-[7px] mt-0.5">{proxyFacultyName}</span>
+                                        )}
+                                      </div>
+                                    )}
                                     <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${color.accent} rounded-r`}></div>
                                     <p className={`${color.text} text-[11px] font-bold leading-snug mb-1.5 pl-1.5`}>{cellData.subject_name}</p>
                                     {cellData.subject_code && (

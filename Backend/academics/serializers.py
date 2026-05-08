@@ -150,6 +150,7 @@ class TimetableSlotSerializer(serializers.ModelSerializer):
     course_code = serializers.CharField(source="course.code", read_only=True)
     faculty_name = serializers.CharField(source="faculty.name", read_only=True)
     room = serializers.SerializerMethodField(read_only=True)
+    proxy_info = serializers.SerializerMethodField(read_only=True)
     room_id = serializers.PrimaryKeyRelatedField(
         source="room",
         queryset=Room.objects.all(),
@@ -179,6 +180,7 @@ class TimetableSlotSerializer(serializers.ModelSerializer):
             "faculty",
             "faculty_name",
             "room",
+            "proxy_info",
             "room_id",
             "room_number",
             "section",
@@ -188,6 +190,22 @@ class TimetableSlotSerializer(serializers.ModelSerializer):
 
     def get_room(self, obj):
         return obj.room_name or (str(obj.room.room_number) if obj.room else None)
+
+    def get_proxy_info(self, obj):
+        try:
+            proxy = obj.proxy_lectures.filter(status="Active").first()
+            if proxy:
+                return {
+                    "proxy_id": str(proxy.proxy_id),
+                    "reason": proxy.reason,
+                    "proxy_faculty_name": (
+                        proxy.proxy_faculty.name if proxy.proxy_faculty else None
+                    ),
+                    "status": proxy.status,
+                }
+        except Exception:
+            pass
+        return None
 
     def _resolve_room(self, validated_data):
         room_obj = validated_data.pop("room", None)

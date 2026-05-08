@@ -454,17 +454,50 @@ def user_notifications(request):
     from .serializers import NotificationSerializer
     from django.db.models import Q
 
-    # Build filter based on user role
-    q = Q(target="Global") | Q(target="All")
+    # Build filter based on user role and identity
+    q = Q(target="Global") | Q(target="All") | Q(target=request.user.email)
+
     if request.user.role == "student":
         q |= Q(target__icontains="Student")
+        try:
+            profile = request.user.student_profile
+            q |= Q(target=profile.name)
+
+            # ── Targeted Proxy Notification Tag ────────────────────────────
+            # The mark_proxy view creates notifications with this EXACT format:
+            #   target = "COURSE_{course_id}_SEM{semester}_SEC{section}"
+            # Students receive notifications for:
+            #   1. Their specific course + semester + section
+            #   2. The "All" section broadcast for their semester
+            course_id = profile.course_id
+            sem = profile.current_semester
+            section = profile.batch or "A"  # batch letter maps to section
+
+            # Exact section match (e.g., COURSE_uuid_SEM3_SECA)
+            q |= Q(target=f"COURSE_{course_id}_SEM{sem}_SEC{section}")
+            # Section = 'All' catchall (admin-sent to entire semester)
+            q |= Q(target=f"COURSE_{course_id}_SEM{sem}_SECAll")
+            # Legacy format support (COURSE_uuid_sem_section)
+            q |= Q(target=f"COURSE_{course_id}_{sem}_{section}")
+            q |= Q(target=f"COURSE_{course_id}_{sem}_All")
+        except Exception:
+            pass
+
     elif request.user.role == "faculty":
         q |= Q(target__icontains="Faculty")
+        try:
+            fac = request.user.faculty_profile
+            q |= Q(target=fac.name)
+            # Faculty receive proxy assignment & confirmation notifications by email
+            q |= Q(target=fac.email)
+        except Exception:
+            pass
+
     elif request.user.role == "admin":
-        # Admin sees everything
+        # Admin sees ALL notifications for audit/record-keeping
         q = Q()
 
-    notifications = Notification.objects.filter(q).order_by("-created_at")[:20]
+    notifications = Notification.objects.filter(q).order_by("-created_at")[:50]
     return Response(NotificationSerializer(notifications, many=True).data)
 
 
@@ -510,10 +543,42 @@ def student_dashboard(request):
         .first()
     )
 
+    # Today's schedule
+    today_classes = []
+    try:
+        from academics.models import TimetableSlot
+        day_now = timezone.now().strftime("%A")
+        
+        slots = TimetableSlot.objects.filter(
+            course=student.course, 
+            semester=student.current_semester,
+            day_of_week=day_now
+        ).select_related("subject", "room").order_by("start_time")
+        
+        now_time = timezone.now().time()
+        for slot in slots:
+            status = "upcoming"
+            if slot.start_time <= now_time <= slot.end_time:
+                status = "ongoing"
+            elif now_time > slot.end_time:
+                status = "completed"
+                
+            today_classes.append({
+                "id": str(slot.slot_id),
+                "subject": slot.subject.name,
+                "time": f"{slot.start_time.strftime('%I:%M %p')} - {slot.end_time.strftime('%I:%M %p')}",
+                "room": slot.room.room_number if slot.room else "TBD",
+                "status": status
+            })
+    except Exception:
+        pass
+
     return Response(
         {
             "student": StudentSerializer(student).data,
             "attendance_percentage": attendance_pct,
+            "today_classes": today_classes,
+            "total_subjects": Subject.objects.filter(course=student.course, semester=student.current_semester).count(),
             "upcoming_exams_count": upcoming_exams_count,
             "upcoming_exams": upcoming_exams_data,
             "pending_assignments_count": pending_assignments_count,

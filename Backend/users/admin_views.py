@@ -203,7 +203,7 @@ def admin_list_users(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, IsSuperAdmin])
+@permission_classes([IsAuthenticated, IsAdminOrSuperAdmin])
 def admin_create_user(request):
     """Create any type of user with auto-generation of IDs, emails, and credentials."""
     try:
@@ -506,7 +506,7 @@ def admin_update_user(request, user_id):
 
 
 @api_view(["DELETE"])
-@permission_classes([IsAuthenticated, IsSuperAdmin])
+@permission_classes([IsAuthenticated, IsAdminOrSuperAdmin])
 def admin_delete_user(request, user_id):
     """Delete any user."""
     try:

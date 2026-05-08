@@ -167,6 +167,20 @@ const Students = () => {
         }
     };
 
+    const handleDelete = async (enrollment_no, userId) => {
+        if(window.confirm("Are you sure you want to permanently delete this student account? This action cannot be undone.")) {
+            try {
+                await adminAPI.deleteUser(userId);
+                setStudents(students.filter(s => s.enrollment_no !== enrollment_no));
+                setAllStudents(allStudents.filter(s => s.enrollment_no !== enrollment_no));
+                setSelectedStudent(null);
+                alert("Account Deleted.");
+            } catch (err) {
+                alert("Failed to delete account");
+            }
+        }
+    };
+
     return (
         <AdminLayout>
             <div className="animate-fade-in max-w-7xl mx-auto space-y-8 relative z-10 px-4">
@@ -524,6 +538,12 @@ const Students = () => {
                                 )}
                                 <button className="flex-1 bg-white/5 text-white/40 border border-white/10 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all">
                                     Modify Core Metadata
+                                </button>
+                                <button 
+                                    onClick={() => handleDelete(selectedStudent.enrollment_no, selectedStudent.user_id)}
+                                    className="flex-1 bg-red-900/40 text-red-400 border border-red-500/20 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
+                                >
+                                    Eradicate Entity
                                 </button>
                             </div>
                         </div>

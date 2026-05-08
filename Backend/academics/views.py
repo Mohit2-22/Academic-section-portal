@@ -16,6 +16,7 @@ from .models import (
     SubjectResult,
     Room,
     SemesterConfig,
+    ProxyLecture,
 )
 from users.models import Faculty
 from .serializers import (
@@ -231,7 +232,9 @@ def timetable_detail(request, slot_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def faculty_timetable(request):
-    """Logged in faculty can view their schedule."""
+    """Logged-in faculty view their weekly schedule, with per-day slot mapping
+    and proxy overlay so the frontend never shows duplicate lectures.
+    """
     if request.user.role != "faculty":
         return Response(
             {"error": "Faculty access required"}, status=status.HTTP_403_FORBIDDEN
@@ -239,10 +242,39 @@ def faculty_timetable(request):
 
     try:
         faculty = request.user.faculty_profile
-        slots = TimetableSlot.objects.filter(faculty=faculty).select_related(
-            "course", "subject", "room"
+
+        # Fetch ALL timetable slots assigned to this faculty
+        slots = (
+            TimetableSlot.objects.filter(faculty=faculty)
+            .select_related("course", "subject", "room")
+            .order_by("day_of_week", "start_time")
         )
-        return Response(TimetableSlotSerializer(slots, many=True).data)
+
+        # Attach active proxy info to each slot so the frontend can overlay it
+        slot_data = []
+        for slot in slots:
+            active_proxy = (
+                ProxyLecture.objects.filter(slot=slot, status="Active")
+                .select_related("proxy_faculty", "original_faculty")
+                .first()
+            )
+            row = TimetableSlotSerializer(slot).data
+            row["proxy_info"] = None
+            if active_proxy:
+                row["proxy_info"] = {
+                    "proxy_id": str(active_proxy.proxy_id),
+                    "original_faculty_name": active_proxy.original_faculty.name,
+                    "proxy_faculty_name": (
+                        active_proxy.proxy_faculty.name
+                        if active_proxy.proxy_faculty
+                        else "Unassigned"
+                    ),
+                    "reason": active_proxy.reason,
+                    "status": active_proxy.status,
+                }
+            slot_data.append(row)
+
+        return Response(slot_data)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -1040,3 +1072,332 @@ def admin_generate_timetable_pdf(request):
             {"success": False, "error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def mark_proxy(request):
+    """
+    Mark a lecture slot as proxy.
+
+    Authorization Logic (STRICT):
+      1. Requesting user must be 'faculty' (or 'admin').
+      2. The timetable slot's assigned faculty must be the requesting faculty.
+      3. The subject in that slot MUST exist in faculty.subjects (Master DB M2M).
+      4. No duplicate active proxy allowed for the same slot.
+
+    Notification Logic (TARGETED):
+      - Admin  → target="Admin"
+      - Students → target=COURSE_{course_id}_SEM{sem}_SEC{section}  (only matching)
+      - Proxy Faculty → target=<proxy_faculty.email>
+    """
+    if request.user.role not in ("faculty", "admin"):
+        return Response(
+            {"error": "Faculty or Admin access required"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    slot_id = request.data.get("slot_id")
+    reason = (request.data.get("reason") or "").strip()
+    proxy_faculty_id = request.data.get("proxy_faculty_id")
+
+    # ── Input validation ──────────────────────────────────────────────────
+    if not slot_id:
+        return Response(
+            {"error": "slot_id is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if len(reason) < 5:
+        return Response(
+            {"error": "Reason must be at least 5 characters"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # ── Fetch slot ────────────────────────────────────────────────────────
+    try:
+        slot = TimetableSlot.objects.select_related(
+            "faculty", "subject", "course", "room"
+        ).get(slot_id=slot_id)
+    except TimetableSlot.DoesNotExist:
+        return Response(
+            {"error": "Timetable slot not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    # ── Authorization checks ──────────────────────────────────────────────
+    if request.user.role == "faculty":
+        faculty = request.user.faculty_profile
+
+        # CHECK 1: Faculty must own this slot
+        if str(slot.faculty.faculty_id) != str(faculty.faculty_id):
+            return Response(
+                {"error": "You can only mark proxy for your OWN assigned lectures."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # CHECK 2: Subject must be in faculty's Master Assignment (M2M)
+        is_master_assigned = slot.subject.faculty_members.filter(
+            faculty_id=faculty.faculty_id
+        ).exists()
+        if not is_master_assigned:
+            return Response(
+                {
+                    "error": (
+                        f"Subject '{slot.subject.code}' is not in your Master Assignment. "
+                        "Contact your HOD/Admin to add it before marking proxy."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+    else:
+        # Admin: act on behalf of the slot's original faculty
+        faculty = slot.faculty
+
+    # CHECK 3: No duplicate active proxy for the same slot
+    if ProxyLecture.objects.filter(slot_id=slot_id, status="Active").exists():
+        return Response(
+            {
+                "error": (
+                    "An active proxy already exists for this slot. "
+                    "Cancel it first before creating a new one."
+                )
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    # ── Proxy faculty validation (optional) ───────────────────────────────
+    proxy_fac = None
+    if proxy_faculty_id:
+        try:
+            proxy_fac = Faculty.objects.get(faculty_id=proxy_faculty_id)
+        except Faculty.DoesNotExist:
+            return Response(
+                {"error": "Proxy faculty not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+    # ── Create proxy record ───────────────────────────────────────────────
+    proxy_obj = ProxyLecture.objects.create(
+        slot=slot,
+        original_faculty=slot.faculty,
+        proxy_faculty=proxy_fac,
+        reason=reason,
+        status="Active",
+        is_notified=False,
+    )
+
+    # ── Auto-notifications (TARGETED — never broadcast to all) ────────────
+    try:
+        from users.models import Notification
+
+        original_name = slot.faculty.name
+        subject_name = slot.subject.name if slot.subject else "Unknown Subject"
+        subject_code = slot.subject.code if slot.subject else ""
+        day_time = f"{slot.day_of_week} {slot.start_time.strftime('%I:%M %p')}"
+        course_code = slot.course.code if slot.course else ""
+        proxy_name = proxy_fac.name if proxy_fac else "To Be Announced"
+        section = slot.section
+        semester = slot.semester
+        course_id = slot.course_id
+
+        # Tag format: COURSE_{uuid}_SEM{sem}_SEC{section}
+        # Students filter their notifications using this EXACT tag.
+        student_target_tag = f"COURSE_{course_id}_SEM{semester}_SEC{section}"
+
+        # 1. Admin notification (record-keeping)
+        Notification.objects.create(
+            target="Admin",
+            type="Proxy Alert",
+            priority="Critical",
+            title=f"[PROXY] {subject_code} — {day_time}",
+            message=(
+                f"PROXY MARKED\n"
+                f"Original Faculty: {original_name}\n"
+                f"Proxy Faculty: {proxy_name}\n"
+                f"Course: {course_code} | Semester: {semester} | Section: {section}\n"
+                f"Subject: {subject_name}\n"
+                f"Schedule: {day_time}\n"
+                f"Reason: {reason}\n"
+                f"[Record-Keeping & Compliance]"
+            ),
+        )
+
+        # 2. Targeted student notification
+        # ONLY students whose course_id, semester, and section match receive this.
+        # The notification.target field stores the COURSE_SEM_SEC tag;
+        # the student dashboard queries by this exact tag.
+        Notification.objects.create(
+            target=student_target_tag,
+            type="Schedule Change",
+            priority="High",
+            title=f"📅 {subject_code}: Proxy Lecture Alert",
+            message=(
+                f"CLASS SCHEDULE CHANGE\n"
+                f"Subject: {subject_code} — {subject_name}\n"
+                f"Course: {course_code} | Sem: {semester} | Section: {section}\n"
+                f"Date: {day_time}\n"
+                f"Proxy Faculty: {proxy_name}\n"
+                f"Reason: {reason}\n"
+                f"Please attend as scheduled."
+            ),
+        )
+
+        # 3. Proxy faculty notification (if assigned)
+        if proxy_fac:
+            Notification.objects.create(
+                target=proxy_fac.email,
+                type="Proxy Assignment",
+                priority="High",
+                title=f"🔄 Proxy Assignment — {subject_code}",
+                message=(
+                    f"PROXY ASSIGNMENT\n"
+                    f"You are assigned as proxy for: {original_name}\n"
+                    f"Subject: {subject_code} — {subject_name}\n"
+                    f"Course: {course_code} | Sem: {semester} | Section: {section}\n"
+                    f"Schedule: {day_time}\n"
+                    f"Reason: {reason}"
+                ),
+            )
+
+        # 4. Confirmation to original faculty
+        Notification.objects.create(
+            target=slot.faculty.email,
+            type="Proxy Confirmation",
+            priority="Normal",
+            title=f"✅ Proxy Confirmed — {subject_code}",
+            message=(
+                f"Proxy marked for {day_time}.\n"
+                f"Proxy Faculty: {proxy_name}\n"
+                f"Subject: {subject_code} | Course: {course_code}"
+            ),
+        )
+
+        # Mark proxy as notified
+        proxy_obj.is_notified = True
+        proxy_obj.save(update_fields=["is_notified"])
+
+    except Exception as e:
+        print(f"[Notification Error] {e}")  # Non-fatal
+    # ── End notifications ─────────────────────────────────────────────────
+
+    return Response(
+        {
+            "success": True,
+            "message": f"Proxy marked for {slot.day_of_week} {slot.start_time}",
+            "proxy_id": str(proxy_obj.proxy_id),
+            "proxy": {
+                "proxy_id": str(proxy_obj.proxy_id),
+                "reason": proxy_obj.reason,
+                "status": proxy_obj.status,
+                "proxy_faculty_name": proxy_fac.name if proxy_fac else None,
+                "original_faculty_name": slot.faculty.name,
+                "day_of_week": slot.day_of_week,
+                "start_time": str(slot.start_time),
+                "end_time": str(slot.end_time),
+                "subject_name": slot.subject.name,
+                "subject_code": slot.subject.code,
+                "course_code": slot.course.code if slot.course else None,
+                "semester": slot.semester,
+                "section": slot.section,
+                "notification_target": (
+                    f"COURSE_{slot.course_id}_SEM{slot.semester}_SEC{slot.section}"
+                ),
+            },
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_proxy(request, proxy_id):
+    if request.user.role not in ("faculty", "admin"):
+        return Response(
+            {"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        proxy_obj = ProxyLecture.objects.select_related(
+            "original_faculty", "slot__faculty"
+        ).get(proxy_id=proxy_id)
+    except ProxyLecture.DoesNotExist:
+        return Response(
+            {"error": "Proxy not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    if request.user.role == "faculty":
+        if str(proxy_obj.original_faculty.user_id) != str(request.user.user_id):
+            return Response(
+                {"error": "You can only cancel your own proxies"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+    proxy_obj.status = "Cancelled"
+    proxy_obj.save(update_fields=["status"])
+
+    return Response(
+        {"success": True, "message": "Proxy lecture cancelled"}
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_slot_proxies(request, slot_id):
+    try:
+        proxies = ProxyLecture.objects.filter(
+            slot_id=slot_id, status="Active"
+        ).select_related("proxy_faculty", "original_faculty")
+
+        data = []
+        for p in proxies:
+            data.append({
+                "proxy_id": str(p.proxy_id),
+                "reason": p.reason,
+                "status": p.status,
+                "original_faculty_name": p.original_faculty.name,
+                "proxy_faculty_name": (
+                    p.proxy_faculty.name if p.proxy_faculty else None
+                ),
+                "created_at": p.created_at.isoformat(),
+            })
+
+        return Response({"proxies": data, "count": len(data)})
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def faculty_my_proxies(request):
+    if request.user.role != "faculty":
+        return Response(
+            {"error": "Faculty access required"}, status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        faculty = request.user.faculty_profile
+        proxies = ProxyLecture.objects.filter(
+            original_faculty=faculty
+        ).select_related("slot", "proxy_faculty", "original_faculty").order_by(
+            "-created_at"
+        )[:50]
+
+        data = []
+        for p in proxies:
+            data.append({
+                "proxy_id": str(p.proxy_id),
+                "reason": p.reason,
+                "status": p.status,
+                "original_faculty_name": p.original_faculty.name,
+                "proxy_faculty_name": (
+                    p.proxy_faculty.name if p.proxy_faculty else "Unassigned"
+                ),
+                "day_of_week": p.slot.day_of_week,
+                "start_time": str(p.slot.start_time),
+                "end_time": str(p.slot.end_time),
+                "subject_name": p.slot.subject.name,
+                "course_code": p.slot.course.code,
+                "semester": p.slot.semester,
+                "section": p.slot.section,
+                "created_at": p.created_at.isoformat(),
+            })
+
+        return Response({"proxies": data})
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

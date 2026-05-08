@@ -67,7 +67,7 @@ const Dashboard = () => {
   // Calculate greeting
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
-  const firstName = data.student?.name?.split(" ")[0] || "Student";
+  const firstName = data.student?.name?.trim().split(" ")[0] || "Student";
 
   return (
     <StudentLayout>
@@ -97,8 +97,13 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-xs text-white/50 uppercase tracking-wider font-bold mb-1">Next Up</p>
-                <p className="text-white font-semibold text-sm">Advanced Java</p>
-                <p className="text-blue-300 text-xs">11:30 AM &bull; Room 302</p>
+                <p className="text-white font-semibold text-sm">
+                  {data.today_classes?.find(c => c.status === 'ongoing' || c.status === 'upcoming')?.subject || "No more classes"}
+                </p>
+                <p className="text-blue-300 text-xs">
+                  {data.today_classes?.find(c => c.status === 'ongoing' || c.status === 'upcoming')?.time || "Enjoy your day!"} 
+                  {data.today_classes?.find(c => c.status === 'ongoing' || c.status === 'upcoming')?.room ? ` • ${data.today_classes?.find(c => c.status === 'ongoing' || c.status === 'upcoming')?.room}` : ""}
+                </p>
               </div>
             </div>
           </div>

@@ -178,6 +178,10 @@ export const facultyAPI = {
   // Grading (Class Teachers)
   gradingStudents: () => api.get('/faculty/grading/students/'),
   gradingSubmit: (data) => api.post('/faculty/grading/submit/', data),
+  // Proxy Lectures
+  markProxy: (data) => api.post('/academics/proxy/mark/', data),
+  cancelProxy: (proxyId) => api.post(`/academics/proxy/${proxyId}/cancel/`),
+  getMyProxies: () => api.get('/academics/faculty/my-proxies/'),
 };
 
 // Admin API

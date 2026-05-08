@@ -12,9 +12,11 @@ import {
   Loader2,
   FileDown,
   Info,
-  Download
+  Download,
+  UserX
 } from "lucide-react";
 import { academicsAPI, adminAPI } from "../../services/api";
+
 
 // Helper: Convert 24h time string "HH:MM" to 12h format "H:MM AM/PM"
 const formatTime12 = (time24) => {
@@ -58,6 +60,7 @@ const Timetable = () => {
   const [timetableSlots, setTimetableSlots] = useState([]);
   const [courseShift, setCourseShift] = useState("NOON");
   const [courseSemesters, setCourseSemesters] = useState({});
+  const [selectedSection, setSelectedSection] = useState("A");
   
   // GANPAT DCS Timetable Slots - Morning Shift (BTECH + Masters)
   const morningSlots = [
@@ -129,7 +132,7 @@ const Timetable = () => {
         setCourseShift(course.shift || "NOON");
       }
     }
-  }, [selectedCourse, selectedSemester, courses.length]);
+  }, [selectedCourse, selectedSemester, selectedSection, courses.length]);
 
   const fetchSubjects = async () => {
     try {
@@ -163,6 +166,7 @@ const Timetable = () => {
       const res = await academicsAPI.timetable({
         course_id: selectedCourse,
         semester: selectedSemester,
+        section: selectedSection === "All" ? null : selectedSection,
       });
       setTimetableSlots(res.data || []);
     } catch (err) {
@@ -224,7 +228,7 @@ const Timetable = () => {
       subject: formData.subject,
       faculty: formData.faculty,
       room_id: formData.room,
-      section: "A"
+      section: selectedSection === "All" ? "A" : selectedSection
     };
 
     try {
@@ -342,11 +346,20 @@ const Timetable = () => {
               <select
                 value={selectedSemester}
                 onChange={(e) => setSelectedSemester(e.target.value)}
-                className="w-full bg-[#2a0808] border border-[var(--gu-gold)]/30 text-white px-4 py-2.5 rounded text-sm focus:border-[var(--gu-gold)] outline-none transition-all cursor-pointer shadow-inner"
+                className="bg-[rgba(212,175,55,0.05)] text-white border border-[var(--gu-gold)]/40 px-4 py-2.5 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[var(--gu-gold)]"
               >
-                {Array.from({ length: (courseSemesters[selectedCourse] || 6) }, (_, i) => i + 1).map(s => (
+                {[...Array(courseSemesters[selectedCourse] || 6)].map((_, i) => i + 1).map(s => (
                   <option key={s} value={s}>Semester {s}</option>
                 ))}
+              </select>
+              <select
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                className="bg-[rgba(212,175,55,0.05)] text-white border border-[var(--gu-gold)]/40 px-4 py-2.5 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[var(--gu-gold)]"
+              >
+                <option value="A">Section A</option>
+                <option value="B">Section B</option>
+                <option value="All">All Sections</option>
               </select>
             </div>
 
@@ -496,10 +509,26 @@ const Timetable = () => {
                                               }
 
                                               const data = getSlotContent(day, slot.start);
+                                              const isProxy = data?.proxy_info && data.proxy_info.status === "Active";
+                                              const proxyInfo = isProxy ? data.proxy_info : null;
+
                                               return (
                                                   <td key={day} className="p-1.5 border-r border-[var(--gu-gold)]/10 last:border-0">
                                                       {data ? (
-                                                          <div className="bg-gradient-to-br from-black/50 to-black/20 border-l-[3px] border-l-[var(--gu-gold)] border border-white/5 p-2.5 rounded-md hover:border-[var(--gu-gold)]/30 transition-all duration-200 shadow-md relative group/card">
+                                                          <div className={`bg-gradient-to-br from-black/50 to-black/20 border-l-[3px] border-l-[var(--gu-gold)] border border-white/5 p-2.5 rounded-md transition-all duration-200 shadow-md relative group/card ${isProxy ? "opacity-70" : "hover:border-[var(--gu-gold)]/30"}`}>
+                                                              {/* Proxy overlay */}
+                                                              {isProxy && (
+                                                                  <div className="absolute inset-0 bg-black/65 rounded-md z-10 flex flex-col items-center justify-center backdrop-blur-[1px] gap-0.5">
+                                                                      <UserX className="w-5 h-5 text-white/70" />
+                                                                      <span className="text-white/90 text-[9px] font-black uppercase tracking-widest">PROXY</span>
+                                                                      {proxyInfo.proxy_faculty_name && (
+                                                                          <span className="text-[var(--gu-gold)] text-[8px] font-bold">{proxyInfo.proxy_faculty_name}</span>
+                                                                      )}
+                                                                      {proxyInfo.reason && (
+                                                                          <span className="text-white/40 text-[7px] text-center px-1 leading-tight">{proxyInfo.reason}</span>
+                                                                      )}
+                                                                  </div>
+                                                              )}
                                                               <div className="text-white text-[11px] font-bold mb-1 leading-tight pr-6">{data.subject_name}</div>
                                                               {data.subject_code && (
                                                                   <div className="text-white/30 text-[8px] font-mono mb-1 bg-white/5 inline-block px-1.5 py-0.5 rounded">{data.subject_code}</div>
@@ -512,13 +541,15 @@ const Timetable = () => {
                                                               </div>
                                                               
                                                               {/* Delete Action Overlay */}
-                                                              <button
-                                                                onClick={() => handleDeleteSlot(data.slot_id)}
-                                                                className="absolute top-1 right-1 p-1 bg-red-500/10 text-red-500/60 rounded border border-red-500/20 opacity-0 group-hover/card:opacity-100 transition-all hover:bg-red-500 hover:text-white"
-                                                                title="Remove Schedule"
-                                                              >
-                                                                <Trash2 className="w-3 h-3" />
-                                                              </button>
+                                                              {!isProxy && (
+                                                                  <button
+                                                                    onClick={() => handleDeleteSlot(data.slot_id)}
+                                                                    className="absolute top-1 right-1 p-1 bg-red-500/10 text-red-500/60 rounded border border-red-500/20 opacity-0 group-hover/card:opacity-100 transition-all hover:bg-red-500 hover:text-white"
+                                                                    title="Remove Schedule"
+                                                                  >
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                  </button>
+                                                              )}
                                                           </div>
                                                       ) : (
                                                           <button

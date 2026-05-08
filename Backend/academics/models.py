@@ -819,8 +819,60 @@ class SemesterConfig(models.Model):
 
     @classmethod
     def get_active(cls):
-        """Get or create the singleton config."""
         config, _ = cls.objects.get_or_create(
             defaults={"current_parity": "ODD"}
         )
         return config
+
+
+class ProxyLecture(models.Model):
+    STATUS_CHOICES = [
+        ("Active", "Active"),
+        ("Cancelled", "Cancelled"),
+    ]
+
+    proxy_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    slot = models.ForeignKey(
+        TimetableSlot,
+        on_delete=models.CASCADE,
+        related_name="proxy_lectures",
+        db_column="slot_id",
+    )
+    original_faculty = models.ForeignKey(
+        "users.Faculty",
+        on_delete=models.CASCADE,
+        related_name="original_lectures",
+        db_column="original_faculty_id",
+    )
+    proxy_faculty = models.ForeignKey(
+        "users.Faculty",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proxy_lectures_taken",
+        db_column="proxy_faculty_id",
+    )
+    reason = models.TextField(
+        max_length=500,
+        help_text="Reason for proxy (e.g., Weekend leave, Sick leave, Conference)",
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="Active",
+    )
+    is_notified = models.BooleanField(
+        default=False,
+        help_text="Has notification been sent?",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "proxy_lectures"
+        verbose_name = "Proxy Lecture"
+        verbose_name_plural = "Proxy Lectures"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Proxy: {self.original_faculty.name} — {self.slot.day_of_week} {self.slot.start_time} ({self.status})"

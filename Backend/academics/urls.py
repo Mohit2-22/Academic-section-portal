@@ -74,5 +74,10 @@ urlpatterns = [
         views.get_timetable_by_room,
         name="get_timetable_by_room",
     ),
+    # Proxy Lecture Routes
+    path("proxy/mark/", views.mark_proxy, name="mark_proxy"),
+    path("proxy/<uuid:proxy_id>/cancel/", views.cancel_proxy, name="cancel_proxy"),
+    path("proxy/slot/<uuid:slot_id>/", views.get_slot_proxies, name="get_slot_proxies"),
+    path("faculty/my-proxies/", views.faculty_my_proxies, name="faculty_my_proxies"),
     path("pyq/search/", views.pyq_search, name="pyq_search"),
 ]
