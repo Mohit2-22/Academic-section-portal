@@ -1,24 +1,61 @@
-# GUNI Academic Portal (AMPICS)
+# 📊 GUNI Academic Portal (AMPICS)
 
-A unified digital platform for academic management, featuring automated tools for exam generation and student career guidance.
+A high-end, unified digital ecosystem designed for academic administration, faculty empowerment, and student success. This platform leverages AI/ML to automate complex tasks such as exam paper generation, career guidance, and attendance tracking with a premium user experience.
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **Framework:** React 19 + Vite 7
-- **Styling:** TailwindCSS 4
+### **Frontend (React 19 + Vite 7)**
+- **Styling:** TailwindCSS 4 (Utility-first, Glassmorphic effects)
 - **Icons:** Lucide React
+- **State Management:** React Hooks & Context API
 - **Routing:** React Router DOM 7
-- **APIs:** Axios, React Hook Form
+- **APIs:** Axios for seamless Backend integration
 
-### Backend
-- **Core:** Django 4.2.7
-- **Framework:** Django REST Framework
-- **Tasks:** Celery + Redis
-- **PDF Generation:** ReportLab, FPDF2, PyPDF2
-- **Data:** Pandas, OpenPyXL
+### **Backend (Django 4.2.7)**
+- **API Framework:** Django REST Framework (DRF)
+- **Authentication:** Simple JWT (JSON Web Tokens)
+- **Database:** PostgreSQL (Primary), Redis (Caching/Celery)
+- **Asynchronous Tasks:** Celery (For PDF generation and ML processing)
+- **ML/AI Libraries:** 
+  - `scikit-learn`, `pandas`, `numpy` (Question Ranking & Data Processing)
+  - `opencv-python`, `face-recognition`, `deepface` (Face ID & Anomaly Detection)
+  - `reportlab`, `fpdf2` (Dynamic PDF Generation)
+
+---
+
+## ✨ Core Modules & Features
+
+### 🔹 1. AI-Powered Exam Paper Generator
+- **Intelligent Ranking:** Uses a trained ML model (`pyq_intelligent_model.pkl`) to rank questions based on historical importance and syllabus weightage.
+- **Automated Formatting:** Generates External, Internal, and Mid-term papers instantly in professional PDF formats.
+- **Syllabus Mapping:** Automatically maps questions to specific curriculum units and difficulty levels.
+
+### 🔹 2. Smart Attendance & Anomaly Detection
+- **Multi-Modal Tracking:** Supports both QR-code based scanning and **AI Face Recognition**.
+- **Proxy Detection:** AI identifies suspicious attendance patterns (e.g., location mismatches or unauthorized proxies) and alerts faculty.
+- **Real-time Hub:** A centralized dashboard for faculty to monitor live session attendance.
+
+### 🔹 3. Proxy Management System (New)
+- **Authorized Substitutions:** Faculty can mark proxies only for their authorized subjects.
+- **Targeted Notifications:** Intelligent broadcast system that filters alerts by Course, Semester, and Section, ensuring only relevant students are notified.
+- **Audit Logs:** Full tracking of who marked the proxy and when.
+
+### 🔹 4. Intelligent Timetable Generator
+- **Conflict Resolution:** Automated logic to prevent faculty double-booking and room clashes.
+- **Workload Management:** Enforces a strict 3-subject cap per faculty member to maintain academic quality.
+- **Shift Support:** Manages complex UG (Morning) and PG (Noon) schedules independently.
+
+### 🔹 5. AI Career Guidance
+- **Resume Analyzer:** Predicts "Job Fit" by analyzing student resumes against real-world job descriptions.
+- **Skill Assessment:** Interactive technical quizzes (Python/JS) to evaluate proficiency.
+- **Path Recommendations:** Generates personalized career roadmaps based on performance and interests.
+
+### 🔹 6. Academic & HR Management
+- **Curriculum Matrix:** Deep management of programs, credit systems, and multi-level syllabus trees.
+- **Faculty HR:** Full onboarding system with leave logs, teaching load tracking, and credential verification.
+- **Student Metrics:** 360-degree view of student profiles, guardian information, and academic progress.
 
 ---
 
@@ -26,58 +63,55 @@ A unified digital platform for academic management, featuring automated tools fo
 
 ```text
 Academic-module/
-├── Backend/                 # Django Application
-│   ├── academics/           # Program & Curriculum Management
-│   ├── ai_career/           # Career Guidance Module
-│   ├── AI_Powered_Exam_Paper_Generator/ # Exam Generation Engine (ML-based)
-│   ├── attendance/          # Attendance Tracking System
-│   ├── users/               # Auth & Role Management (Admin, Faculty, Student)
-│   └── ampics/              # Core Settings
-├── frontend/                # React Application
+├── Backend/                 # Django Application (REST API)
+│   ├── academics/           # Program, Curriculum & Timetable Logic
+│   ├── ai_career/           # Career Guidance & Resume Analysis
+│   ├── AI_Powered_..._Gen/  # ML Engine for Exam Papers
+│   ├── attendance/          # QR & Basic Tracking
+│   ├── attendance_ai/       # Face Recognition & Anomaly Detection
+│   ├── users/               # Multi-role Auth (Admin, Faculty, Student)
+│   └── ampics/              # Core Settings & Config
+├── frontend/                # React Application (Vite)
 │   ├── src/                 # Source Code
-│   │   ├── pages/admin/     # Admin Dashboards
-│   │   ├── pages/student/   # Student Portal
-│   │   └── pages/faculty/   # Faculty Tools
-│   └── vite.config.js       # Vite Configuration
-└── START_ALL_SERVICES.bat   # Startup Script
+│   │   ├── components/      # Reusable UI (Glassmorphic design)
+│   │   ├── pages/admin/     # Admin Dashboards (HR, Config)
+│   │   ├── pages/faculty/   # Faculty Tools (Attendance, PYQs, Proxy)
+│   │   └── pages/student/   # Student Portal (Results, Career)
+└── START_ALL_SERVICES.bat   # One-click system startup
 ```
 
 ---
 
-## ✨ Available Modules (Current)
+## 🚀 Getting Started
 
-### 1. AI Exam Paper Generator
-- **ML Question Ranking:** Uses a trained model (`exam_paper_model.pkl`) to rank questions based on importance (BCA specific).
-- **Automated Generation:** Generates full exam papers (External, Internal, Mid-term) with subject-specific mapping.
-- **PDF Export:** Instant generation of exam papers in professional PDF format.
+1. **Quick Launch:**
+   Double-click `.\START_ALL_SERVICES.bat` in the root directory to start both Backend and Frontend.
 
-### 2. AI Career Guidance
-- **Resume Analyzer:** Predicts "Job Fit" by analyzing resume text against job descriptions.
-- **Skill Assessment:** Interactive quizzes for Python and JavaScript to evaluate student proficiency.
-- **Career Recommendations:** Generates path suggestions based on student interests and skills.
+2. **Manual Backend Setup:**
+   ```bash
+   cd Backend
+   python -m venv .venv
+   source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+   pip install -r requirements.txt
+   python manage.py runserver
+   ```
 
-### 3. Attendance Management
-- **QR Attendance:** Real-time QR-based attendance tracking for students.
-- **Manual Overrides:** Faculty-controlled attendance marking and verification.
-
-### 4. Admin Management (HR & Curriculum)
-- **Student Metrics:** Deep tracking of student profiles, guardian info, and academic targets.
-- **Faculty HR:** Onboarding system with credential verification and leave logs.
-- **Curriculum Matrix:** Defining programs, credit systems, and syllabus trees.
-- **Academic Cycle:** Management of terms, holidays, and system-wide suspensions.
-
-### 5. Notification System
-- Targeted broadcasts for specific departments or student groups.
-- Priority-based alerts with delivery channel logs.
+3. **Manual Frontend Setup:**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
 ---
 
-## 🚦 How to Run
+## 🔒 Copyright & Credits
 
-1. **Quick Start:** Run `.\START_ALL_SERVICES.bat` from the root directory.
-2. **Backend:** Navigate to `/Backend`, activate venv, and run `python manage.py runserver`.
-3. **Frontend:** Navigate to `/frontend` and run `npm run dev`.
+**Developed by:**
+- **Mohit Prajapati**
+- **Aadarsh Singh**
+
+© 2026 GUNI Academic Portal. All rights reserved. No part of this project may be reproduced or transmitted in any form without the prior written permission of the developers.
 
 ---
-
-**Note:** Only currently implemented features and AI models are listed above.
+> **Status:** Active Development | **Target:** AMPICS, Ganpat University
