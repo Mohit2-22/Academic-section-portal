@@ -73,7 +73,6 @@ The **Academic Section Portal** is a full-stack web application designed for Gan
 
 4. **Attendance Report:**
    - Faculty views session-wise attendance from `ai_attendance_records`.
-   - Export to Google Sheets via Google Sheets API integration.
    - Export to CSV via Django `HttpResponse` with `text/csv` content type.
 
 5. **Timetable View:** Faculty sees their personal timetable from `timetable_slots` filtered by `faculty_id`.
@@ -181,7 +180,7 @@ The **Academic Section Portal** is a full-stack web application designed for Gan
               ▼               ▼                ▼
        Create Session    Face Recognition   Export Report
               │               │                │
-       ai_lecture_sessions  ai_face_encodings  Google Sheets/CSV
+       ai_lecture_sessions  ai_face_encodings  CSV Report
 
 [Admin] ──► Login ──► Admin Dashboard
                            │
@@ -206,6 +205,6 @@ The **Academic Section Portal** is a full-stack web application designed for Gan
 | AI Attendance | face_recognition, OpenCV, dlib |
 | PYQ Generator | Scikit-learn (TF-IDF), pandas, NumPy |
 | LLM Integration | Google Gemini API |
-| Export | Google Sheets API (gspread), Python csv |
+| Export | Python csv (CSV download) |
 | Storage | Django MEDIA_ROOT (local filesystem) |
 | Deployment | Supabase (DB), local Django server |

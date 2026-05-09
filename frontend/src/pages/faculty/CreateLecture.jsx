@@ -343,9 +343,9 @@ export default function CreateLecture() {
         <p className="text-gray-500 text-sm mt-1">Generate a QR code for student attendance marking.</p>
       </div>
 
-      <form onSubmit={handleCreate} className="bg-white border border-gray-200 rounded-2xl p-7 shadow-sm space-y-5">
+      <form onSubmit={handleCreate} className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-7 shadow-sm space-y-5">
         {/* Course & Semester */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Course</label>
             <div className="relative">
@@ -413,7 +413,7 @@ export default function CreateLecture() {
         </div>
 
         {/* Time */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Start Time</label>
             <div className="relative">

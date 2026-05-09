@@ -91,7 +91,7 @@ const Dashboard = () => {
         <div className="animate-fade-in max-w-7xl mx-auto space-y-10 relative z-10">
             
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-[var(--gu-red-deep)]/40 p-8 rounded-2xl border border-[var(--gu-gold)]/10 backdrop-blur-sm shadow-2xl">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6 bg-[var(--gu-red-deep)]/40 p-4 sm:p-8 rounded-2xl border border-[var(--gu-gold)]/10 backdrop-blur-sm shadow-2xl">
                 <div>
                     <h1 className="font-serif text-4xl md:text-5xl text-white mb-2 tracking-tight">
                         Aether Faculty Console

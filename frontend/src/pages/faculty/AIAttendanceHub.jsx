@@ -4,8 +4,8 @@ import {
   QrCode, Clock, Users, ChevronDown, Loader2, AlertCircle,
   Copy, Download, CheckCircle, XCircle, RefreshCw, Calendar,
   Camera, Square, Wifi, Filter, MapPin, Navigation, Shield,
-  BookOpen, Zap, FileSpreadsheet, FileDown,
-  ExternalLink, ScanFace, BarChart2, TrendingUp
+  BookOpen, Zap, FileDown,
+  ScanFace, BarChart2, TrendingUp
 } from 'lucide-react';
 import { attendanceAI, facultyAPI } from '../../services/api';
 
@@ -111,7 +111,7 @@ function CreateLectureTab() {
   const [copied, setCopied] = useState(false);
   const [ending, setEnding] = useState(false);
   const [endResult, setEndResult] = useState(null);
-  const [exporting, setExporting] = useState(false);
+
   const [exportResult, setExportResult] = useState(null);
   const pollRef = useRef(null);
 
@@ -366,17 +366,24 @@ function CreateLectureTab() {
     });
   }, []);
 
+  const scanBusyRef = useRef(false);
+
   const startFaceScanning = useCallback(() => {
     const sid = scanSessionRef.current || session?.session_id;
     if (!sid) return;
     setScanning(true);
 
     const doScan = async () => {
+      // Prevent overlapping requests — if the previous scan is still running, skip
+      if (scanBusyRef.current) return;
+
       const frame = captureFaceFrame();
       if (!frame) {
         setLastScanInfo('Camera not ready...');
         return;
       }
+
+      scanBusyRef.current = true;
       try {
         setScanError('');
         const res = await attendanceAI.markAttendanceMultiFace(sid, frame);
@@ -441,13 +448,16 @@ function CreateLectureTab() {
         }
       } catch (err) {
         console.error('Scan error:', err);
-        setScanError('Connection error or server failure');
-        setLastScanInfo(`Error: ${err?.response?.data?.error || 'Server failed to process scan'}`);
+        const serverMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || '';
+        setScanError(serverMsg || 'Connection error or server failure');
+        setLastScanInfo(`Error: ${serverMsg || 'Server failed to process scan. Retrying...'}`);
+      } finally {
+        scanBusyRef.current = false;
       }
     };
 
     doScan();
-    scanIntervalRef.current = setInterval(doScan, 2000);
+    scanIntervalRef.current = setInterval(doScan, 3000);
   }, [session, captureFaceFrame]);
 
   const stopFaceScanning = () => {
@@ -456,16 +466,7 @@ function CreateLectureTab() {
   };
 
   // â”€â”€ Export handlers â”€â”€
-  const handleExportSheets = async () => {
-    if (!session?.session_id) return;
-    setExporting(true); setExportResult(null);
-    try {
-      const res = await attendanceAI.exportToSheets(session.session_id);
-      setExportResult(res.data);
-    } catch (err) {
-      setExportResult({ success: false, message: err?.response?.data?.message || 'Export failed.' });
-    } finally { setExporting(false); }
-  };
+
 
   const handleDownloadCSV = async () => {
     if (!session?.session_id) return;
@@ -789,14 +790,10 @@ function CreateLectureTab() {
         )}
 
         {/* â”€â”€ Export Buttons â”€â”€ */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <button onClick={handleExportSheets} disabled={exporting}
-            className="flex items-center justify-center gap-2 bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-500 disabled:opacity-50 transition-colors text-sm">
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-            {exporting ? 'Exporting...' : 'Export to Google Sheet'}
-          </button>
+
+        <div className="mb-4">
           <button onClick={handleDownloadCSV}
-            className="flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-500 transition-colors text-sm">
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-500 transition-colors text-sm">
             <FileDown className="w-4 h-4" /> Download CSV
           </button>
         </div>
@@ -810,14 +807,9 @@ function CreateLectureTab() {
           }`}>
             <p className="font-semibold mb-1">{exportResult.success ? 'âœ… Export Successful' : 'âŒ Export Failed'}</p>
             <p className="text-xs opacity-80">{exportResult.message}</p>
-            {exportResult.spreadsheet_url && (
-              <a href={exportResult.spreadsheet_url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 mt-2 text-xs text-[var(--gu-gold)] hover:underline">
-                <ExternalLink className="w-3 h-3" /> Open in Google Sheets
-              </a>
-            )}
+
             {exportResult.fallback && exportResult.csv_path && (
-              <p className="text-xs mt-1 text-yellow-300/70">âš ï¸ Google Sheets API not configured. CSV file saved on server.</p>
+              <p className="text-xs mt-1 text-yellow-300/70">âš ï¸ CSV file saved on server.</p>
             )}
           </div>
         )}
@@ -1073,7 +1065,7 @@ function AttendanceReportTab() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [exporting, setExporting] = useState({});
+
   const [exportResults, setExportResults] = useState({});
   const [downloading, setDownloading] = useState({});
 
@@ -1094,21 +1086,7 @@ function AttendanceReportTab() {
     (s.subject_code || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleExportSheet = async (sessionId) => {
-    setExporting(prev => ({ ...prev, [sessionId]: true }));
-    setExportResults(prev => ({ ...prev, [sessionId]: null }));
-    try {
-      const res = await attendanceAI.exportToSheets(sessionId);
-      setExportResults(prev => ({ ...prev, [sessionId]: res.data }));
-    } catch (err) {
-      setExportResults(prev => ({
-        ...prev,
-        [sessionId]: { success: false, message: err?.response?.data?.message || 'Export failed.' }
-      }));
-    } finally {
-      setExporting(prev => ({ ...prev, [sessionId]: false }));
-    }
-  };
+
 
   const handleDownloadCSV = async (sessionId, subjectCode, sessionDate) => {
     setDownloading(prev => ({ ...prev, [sessionId]: true }));
@@ -1166,7 +1144,7 @@ function AttendanceReportTab() {
           <h2 className="font-serif text-xl text-white flex items-center gap-2">
             <BarChart2 className="w-5 h-5 text-[var(--gu-gold)]" /> Attendance Reports
           </h2>
-          <p className="text-white/40 text-sm mt-0.5">View session results, export to Google Sheets or download CSV</p>
+          <p className="text-white/40 text-sm mt-0.5">View session results or download CSV</p>
         </div>
         <button onClick={fetchSessions} disabled={loading}
           className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 px-3 py-2 rounded-lg border border-[var(--gu-border)] hover:border-[var(--gu-gold)]/30 transition-all">
@@ -1199,7 +1177,6 @@ function AttendanceReportTab() {
           {filtered.map((s) => {
             const pct = s.percentage ?? (s.total_students > 0 ? Math.round((s.present_count / s.total_students) * 100) : 0);
             const exportRes = exportResults[s.id];
-            const isExporting = exporting[s.id];
             const isDownloading = downloading[s.id];
 
             return (
@@ -1248,11 +1225,7 @@ function AttendanceReportTab() {
 
                 {/* Export buttons */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <button onClick={() => handleExportSheet(s.id)} disabled={isExporting}
-                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
-                    {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
-                    {isExporting ? 'Exporting...' : 'Export to Google Sheet'}
-                  </button>
+
                   <button onClick={() => handleDownloadCSV(s.id, s.subject_code, s.date)} disabled={isDownloading}
                     className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
                     {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
@@ -1269,14 +1242,9 @@ function AttendanceReportTab() {
                   }`}>
                     <p className="font-semibold">{exportRes.success ? 'âœ… Export Successful' : 'âŒ Export Failed'}</p>
                     <p className="opacity-70 mt-0.5">{exportRes.message}</p>
-                    {exportRes.spreadsheet_url && (
-                      <a href={exportRes.spreadsheet_url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-1.5 text-[var(--gu-gold)] hover:underline">
-                        <ExternalLink className="w-3 h-3" /> Open in Google Sheets
-                      </a>
-                    )}
+
                     {exportRes.fallback && (
-                      <p className="mt-1 text-yellow-300/60">âš ï¸ Google Sheets API not configured â€” CSV saved to server.</p>
+                      <p className="mt-1 text-yellow-300/60">âš ï¸ CSV saved to server.</p>
                     )}
                   </div>
                 )}

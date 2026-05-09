@@ -356,19 +356,7 @@ export const attendanceAI = {
   bulkRemind: () =>
     api.post('/attendance-ai/admin/bulk-remind/'),
 
-  // ── Export: Google Sheets & CSV ────────────────────────────────────────────
-  exportToSheets: (sessionId, spreadsheetId = null) =>
-    api.post('/attendance-ai/export-to-sheets/', {
-      session_id: sessionId,
-      spreadsheet_id: spreadsheetId,
-    }),
 
-  exportCumulative: (subjectId, dateFrom = null, dateTo = null) =>
-    api.post('/attendance-ai/export-cumulative/', {
-      subject_id: subjectId,
-      date_from: dateFrom,
-      date_to: dateTo,
-    }),
 
   downloadCSV: (sessionId) =>
     api.get(`/attendance-ai/download-csv/${sessionId}/`, { responseType: 'blob' }),

@@ -17,7 +17,7 @@ const About = () => {
 
                 <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-4xl mx-auto pt-6">
                     <div className="mb-6"><Logo size="xl" /></div>
-                    <h1 className="font-serif text-5xl font-bold text-white mb-4 tracking-tight">
+                    <h1 className="font-serif text-3xl sm:text-5xl font-bold text-white mb-4 tracking-tight">
                         About Ganpat University
                     </h1>
                     <h2 className="text-[var(--gu-gold)] italic tracking-[0.1em] text-lg font-medium mb-6">

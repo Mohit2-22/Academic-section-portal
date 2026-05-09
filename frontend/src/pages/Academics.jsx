@@ -4,7 +4,7 @@ import { ChevronDown } from 'lucide-react';
 
 const programsData = [
     {
-        school: "School of Engineering & Technology",
+        school: "Center of Engineering & Technology",
         programs: [
             { name: "B.Tech — Computer Engineering, IT, Mechanical, Civil, Electrical, EC", duration: "4 Years" },
             { name: "M.Tech — Computer Engineering, Mechanical", duration: "2 Years" },
@@ -12,7 +12,7 @@ const programsData = [
         ]
     },
     {
-        school: "School of Management",
+        school: "Center of Management",
         programs: [
             { name: "BBA", duration: "3 Years" },
             { name: "MBA — Marketing, Finance, HR", duration: "2 Years" },
@@ -20,14 +20,14 @@ const programsData = [
         ]
     },
     {
-        school: "School of Computer Applications",
+        school: "Center of Computer Applications",
         programs: [
             { name: "BCA", duration: "3 Years" },
             { name: "MCA", duration: "2 Years" }
         ]
     },
     {
-        school: "School of Pharmacy",
+        school: "Center of Pharmacy",
         programs: [
             { name: "B.Pharm", duration: "4 Years" },
             { name: "M.Pharm", duration: "2 Years" },
@@ -35,7 +35,7 @@ const programsData = [
         ]
     },
     {
-        school: "School of Science",
+        school: "Center of Science",
         programs: [
             { name: "B.Sc — Physics, Chemistry, Maths", duration: "3 Years" },
             { name: "M.Sc", duration: "2 Years" }
@@ -53,9 +53,9 @@ const Academics = () => {
     return (
         <Layout>
             {/* Page Header */}
-            <section className="bg-[var(--gu-red-dark)] py-16 px-6 md:px-16 lg:px-24 border-b border-[var(--gu-gold)] min-h-44 flex flex-col justify-center">
+            <section className="bg-[var(--gu-red-dark)] py-12 sm:py-16 px-4 sm:px-6 md:px-16 lg:px-24 border-b border-[var(--gu-gold)] min-h-44 flex flex-col justify-center">
                 <div className="max-w-4xl mx-auto text-center">
-                    <h1 className="font-serif text-4xl md:text-5xl font-bold text-white mb-4 animate-fade-in break-words">
+                    <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 animate-fade-in break-words">
                         Academic Programs
                     </h1>
                     <h2 className="text-[var(--gu-gold)] uppercase tracking-[0.15em] text-sm md:text-base font-medium animate-slide-up break-words" style={{ animationDelay: '0.1s', opacity: 0, animationFillMode: 'forwards' }}>

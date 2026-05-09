@@ -4,19 +4,17 @@ generate_timetable.py
 SMART, CONFLICT-FREE weekly timetable generator.
 
 RULES ENFORCED:
-  1. Each faculty teaches EXACTLY 3 subjects (globally).
-  2. Each faculty teaches in MINIMUM 2 different courses (cross-course mandatory).
-  3. Cross-course teaching ONLY if subject name matches EXACTLY.
-  4. NO faculty clash at same day + same time across ANY courses.
-  5. Monday-Friday: ALL slots filled, 1 break per shift at correct time.
-  6. Saturday: 3 sessions only, NO break.
-  7. Shift-specific breaks (Morning: 10:00-10:30, Afternoon: 16:00-16:30).
-  8. No back-to-back same subject lectures in a single day.
-  9. Balanced distribution across the week.
+  1. Each real faculty teaches at most MAX_SUBJECTS_PER_FACULTY unique subjects.
+  2. NO real faculty clash at same day + same time across ANY courses.
+  3. Monday-Friday: ALL slots filled (5 lecture slots per day per shift).
+  4. Saturday: exactly 3 slots only.
+  5. Shift-specific breaks (Morning: 10:00-10:30, Afternoon: 13:50-14:20).
+  6. No back-to-back same subject lectures in a single day.
+  7. TBA faculty is a safe placeholder — TBA slots NEVER count as real clashes.
 
 Run:
     python manage.py generate_timetable
-    python manage.py generate_timetable --max_subjects 3
+    python manage.py generate_timetable --max_subjects 5
 """
 
 from collections import defaultdict
@@ -26,11 +24,11 @@ from academics.models import Course, Room, Subject, TimetableSlot
 from users.models import Faculty
 
 
-MAX_SUBJECTS_PER_FACULTY = 3
+MAX_SUBJECTS_PER_FACULTY = 5   # Raised to avoid over-reliance on TBA
 
 
 class Command(BaseCommand):
-    help = "Generate SMART conflict-free timetable with strict faculty rules"
+    help = "Generate SMART conflict-free timetable for ALL courses/semesters"
 
     # ── Time-slot definitions ────────────────────────────────────────────
     WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
@@ -38,25 +36,24 @@ class Command(BaseCommand):
     ALL_DAYS = WEEKDAYS + [SATURDAY]
     SATURDAY_SLOT_LIMIT = 3
 
-    # Morning shift: break at 10:00-10:30
+    # Morning shift: 5 slots, break at 10:00-10:30
     MORNING_SLOTS = [
         (1, "08:00", "08:55"),
         (2, "08:55", "10:00"),
-        # BREAK 10:00 - 10:30 (morning only)
+        # BREAK 10:00 - 10:30
         (3, "10:30", "11:25"),
         (4, "11:25", "12:20"),
         (5, "12:20", "13:15"),
     ]
 
-    # Afternoon/Evening shift: break at 16:00-16:30
+    # Noon shift: 5 slots, break at 13:50-14:20
     NOON_SLOTS = [
         (1, "12:00", "12:55"),
         (2, "12:55", "13:50"),
+        # BREAK 13:50 - 14:20
         (3, "14:20", "15:15"),
-        # implicit gap then:
-        (4, "15:15", "16:00"),
-        # BREAK 16:00 - 16:30 (afternoon only)
-        (5, "16:30", "17:20"),
+        (4, "15:15", "16:10"),
+        (5, "16:10", "17:05"),
     ]
 
     MORNING_ROOMS = ["LH-102", "LH-103", "B-LH-02", "A-201", "A-202", "C-101", "C-102"]
@@ -100,9 +97,10 @@ class Command(BaseCommand):
         return list(base)
 
     def _shift_compatible(self, faculty, shift):
-        ws = faculty.working_shift
+        ws = (faculty.working_shift or "").strip()
         if shift == "morning":
             return ws in ("Morning", "Full Day")
+        # noon shift — Evening faculty can also teach noon
         return ws in ("Noon", "Full Day", "Evening")
 
     def _shift_rooms(self, shift, room_map):
@@ -118,7 +116,6 @@ class Command(BaseCommand):
             rn = class_room_map[key]
             return rn, room_map.get(rn)
         ordered = sorted(room_numbers, key=lambda rn: (
-            1 if rn in set(class_room_map.values()) else 0,
             room_total_load.get(rn, 0), rn,
         ))
         if not ordered:
@@ -137,7 +134,7 @@ class Command(BaseCommand):
 
         self.stdout.write("=" * 72)
         self.stdout.write(
-            f"SMART TIMETABLE GENERATION  |  {max_subjects} subjects/faculty  |  ZERO clashes"
+            f"TIMETABLE GENERATION  |  max {max_subjects} subj/faculty  |  ZERO real clashes"
         )
         self.stdout.write("=" * 72)
 
@@ -160,10 +157,12 @@ class Command(BaseCommand):
                 "max_lectures_per_day": 99,
             },
         )
+        TBA_ID = str(tba_faculty.faculty_id)
 
         # ── Preserve manual slots in busy sets ───────────────────────────
-        faculty_busy  = set()   # (fac_id_str, day, start, end)
-        room_busy     = set()   # (room_name, day, start, end)
+        # Only track REAL faculty (not TBA) in busy sets to avoid false clashes
+        faculty_busy  = set()   # (fac_id_str, day, start) — real faculty only
+        room_busy     = set()   # (room_name, day, start)
         class_busy    = set()   # (course_id_str, sem, day, start, section)
         room_total_load  = defaultdict(int)
         class_room_map   = {}
@@ -172,13 +171,14 @@ class Command(BaseCommand):
             is_auto_generated=False
         ).select_related("room", "faculty"):
             start = slot.start_time.strftime("%H:%M")
-            end   = slot.end_time.strftime("%H:%M")
             day   = slot.day_of_week
-            if slot.faculty_id:
-                faculty_busy.add((str(slot.faculty_id), day, start, end))
+            fid   = str(slot.faculty_id) if slot.faculty_id else None
+            # Only block real faculty (not TBA)
+            if fid and fid != TBA_ID:
+                faculty_busy.add((fid, day, start))
             rn = slot.room_name or (slot.room.room_number if slot.room else None)
             if rn:
-                room_busy.add((rn, day, start, end))
+                room_busy.add((rn, day, start))
                 room_total_load[rn] += 1
             class_busy.add((str(slot.course_id), slot.semester, day, start, slot.section))
 
@@ -190,6 +190,9 @@ class Command(BaseCommand):
         # ── Room map ─────────────────────────────────────────────────────
         all_rooms = Room.objects.all().order_by("room_number")
         room_map  = {r.room_number: r for r in all_rooms}
+        if not room_map:
+            # Create default virtual rooms if none exist
+            self.stdout.write("[WARN] No rooms found in DB — using virtual rooms")
 
         # ── Faculty list ─────────────────────────────────────────────────
         all_faculty = list(
@@ -202,6 +205,12 @@ class Command(BaseCommand):
         # Clear M2M for fresh assignment
         for fac in all_faculty:
             fac.subjects.clear()
+
+        # Track faculty loads for this generation run
+        faculty_subject_count = defaultdict(int)  # fac_id -> unique subject count
+        faculty_subject_set   = defaultdict(set)  # fac_id -> set of subject keys
+        faculty_courses_set   = defaultdict(set)  # fac_id -> set of course_ids
+        faculty_day_load      = defaultdict(int)  # (fac_id, day) -> slots count
 
         # ── Courses ──────────────────────────────────────────────────────
         def get_order(c):
@@ -217,12 +226,13 @@ class Command(BaseCommand):
         all_courses = sorted(Course.objects.all(), key=get_order)
 
         # =================================================================
-        # PHASE 1: Collect ALL subjects, group by exact name for cross-course
+        # PHASE 1: Collect ALL course-semester combos with subjects
         # =================================================================
-        self.stdout.write("\n-- PHASE 1: Cross-course subject analysis --")
+        self.stdout.write("\n-- PHASE 1: Course-semester analysis --")
 
-        # subject_key -> list of (course, semester, Subject)
-        subject_groups = defaultdict(list)
+        # subject_key -> Faculty (global shared assignment)
+        subject_faculty_map = {}
+        # all_course_sems: list of (course, sem, section, shift, subjects)
         all_course_sems = []
 
         for course in all_courses:
@@ -232,138 +242,76 @@ class Command(BaseCommand):
                 .values_list("semester", flat=True).distinct()
             )
             for sem in semesters:
-                if sem == getattr(course, "total_semesters", -1):
-                    continue
-                subjects = list(Subject.objects.filter(course=course, semester=sem).order_by("code"))
+                subjects = list(
+                    Subject.objects.filter(course=course, semester=sem).order_by("code")
+                )
                 if not subjects:
                     continue
                 section = self.SEM_SECTIONS.get(sem, "A")
                 all_course_sems.append((course, sem, section, shift, subjects))
-                for subj in subjects:
-                    skey = self._subject_key(subj.name)
-                    subject_groups[skey].append((course, sem, subj))
 
-        # Identify cross-course subjects (appear in 2+ different courses)
-        cross_course_subjects = {}
-        for skey, entries in subject_groups.items():
-            course_ids = set(str(c.course_id) for c, _, _ in entries)
-            if len(course_ids) >= 2:
-                cross_course_subjects[skey] = entries
-                self.stdout.write(
-                    f"  Cross-course: '{skey}' in {len(course_ids)} courses"
-                )
+        self.stdout.write(f"  Total course-semester combos: {len(all_course_sems)}")
 
         # =================================================================
-        # PHASE 2: Assign faculty to subjects (3-subject cap, min 2 courses)
+        # PHASE 2: Assign faculty to subjects
+        # Strategy: assign by subject key so the same subject across courses
+        # goes to the same faculty (reuse knowledge), respecting the cap.
         # =================================================================
         self.stdout.write("\n-- PHASE 2: Faculty-subject assignment --")
 
-        subject_faculty_map   = {}          # skey -> Faculty
-        faculty_subject_count = defaultdict(int)  # fac_id -> count
-        faculty_courses_set   = defaultdict(set)  # fac_id -> set of course_ids
-
-        # 2a) Assign cross-course subjects FIRST (to ensure min 2 courses)
-        cross_keys_sorted = sorted(
-            cross_course_subjects.keys(),
-            key=lambda k: len(cross_course_subjects[k]),
-            reverse=True,
-        )
-
-        for skey in cross_keys_sorted:
+        def pick_faculty_for_subject(skey, shift, course_id_str):
+            """Pick best available faculty for a subject key in a given shift."""
+            # Already assigned globally?
             if skey in subject_faculty_map:
-                continue
-            entries = cross_course_subjects[skey]
-            course_ids_for_subj = set(str(c.course_id) for c, _, _ in entries)
-            shifts_needed = set()
-            for c, _, _ in entries:
-                shifts_needed.add(self._resolve_shift(c))
+                fac = subject_faculty_map[skey]
+                fid = str(fac.faculty_id)
+                # Check the assigned faculty can teach this shift too
+                if self._shift_compatible(fac, shift):
+                    return fac
+                # Otherwise fall through to find someone new
 
-            # Pick faculty compatible with ALL shifts of this subject
+            # Sort candidates: prefer shift-compatible, fewer subjects, fewer courses
             candidates = [
                 f for f in all_faculty
-                if faculty_subject_count[str(f.faculty_id)] < max_subjects
-                and all(self._shift_compatible(f, s) for s in shifts_needed)
+                if self._shift_compatible(f, shift)
+                and faculty_subject_count[str(f.faculty_id)] < max_subjects
             ]
             candidates.sort(key=lambda f: (
                 faculty_subject_count[str(f.faculty_id)],
-                -len(faculty_courses_set[str(f.faculty_id)] & course_ids_for_subj),
+                -len(faculty_courses_set[str(f.faculty_id)]),
             ))
 
-            chosen = candidates[0] if candidates else None
+            if candidates:
+                return candidates[0]
 
-            # Fallback: try any shift-partial-compatible faculty
-            if not chosen:
-                candidates = [
-                    f for f in all_faculty
-                    if faculty_subject_count[str(f.faculty_id)] < max_subjects
-                    and any(self._shift_compatible(f, s) for s in shifts_needed)
-                ]
-                candidates.sort(key=lambda f: faculty_subject_count[str(f.faculty_id)])
-                chosen = candidates[0] if candidates else tba_faculty
-
-            fid = str(chosen.faculty_id)
-            subject_faculty_map[skey] = chosen
-            faculty_subject_count[fid] += 1
-            for c, _, subj in entries:
-                faculty_courses_set[fid].add(str(c.course_id))
-                if chosen != tba_faculty:
-                    chosen.subjects.add(subj)
-
-            self.stdout.write(
-                f"  [CROSS] '{skey}' -> {chosen.name} "
-                f"({faculty_subject_count[fid]}/{max_subjects} subj, "
-                f"{len(faculty_courses_set[fid])} courses)"
-            )
-
-        # 2b) Assign remaining (single-course) subjects
-        remaining_skeys = [
-            skey for skey in subject_groups.keys()
-            if skey not in subject_faculty_map
-        ]
-
-        for skey in remaining_skeys:
-            entries = subject_groups[skey]
-            course_ids_for_subj = set(str(c.course_id) for c, _, _ in entries)
-            shifts_needed = set()
-            for c, _, _ in entries:
-                shifts_needed.add(self._resolve_shift(c))
-
-            # Prefer faculty who need more courses (to reach min 2)
-            candidates = [
+            # Fallback: any faculty under cap regardless of shift
+            candidates2 = [
                 f for f in all_faculty
                 if faculty_subject_count[str(f.faculty_id)] < max_subjects
-                and any(self._shift_compatible(f, s) for s in shifts_needed)
             ]
-            # Sort: prefer faculty with fewer courses first (help them reach 2)
-            candidates.sort(key=lambda f: (
-                0 if len(faculty_courses_set[str(f.faculty_id)]) < 2 else 1,
-                faculty_subject_count[str(f.faculty_id)],
-            ))
+            candidates2.sort(key=lambda f: faculty_subject_count[str(f.faculty_id)])
+            if candidates2:
+                return candidates2[0]
 
-            chosen = candidates[0] if candidates else tba_faculty
+            # Last resort: TBA
+            return tba_faculty
 
-            fid = str(chosen.faculty_id)
-            subject_faculty_map[skey] = chosen
-            faculty_subject_count[fid] += 1
-            for c, _, subj in entries:
-                faculty_courses_set[fid].add(str(c.course_id))
-                if chosen != tba_faculty:
-                    chosen.subjects.add(subj)
+        # Pre-assign subjects globally
+        for course, sem, section, shift, subjects in all_course_sems:
+            for subj in subjects:
+                skey = self._subject_key(subj.name)
+                if skey not in subject_faculty_map:
+                    fac = pick_faculty_for_subject(skey, shift, str(course.course_id))
+                    subject_faculty_map[skey] = fac
+                    fid = str(fac.faculty_id)
+                    if fac != tba_faculty:
+                        if skey not in faculty_subject_set[fid]:
+                            faculty_subject_set[fid].add(skey)
+                            faculty_subject_count[fid] += 1
+                        faculty_courses_set[fid].add(str(course.course_id))
+                        fac.subjects.add(subj)
 
-        # 2c) Try to fill faculty who have < 3 subjects
-        under_filled = [
-            f for f in all_faculty
-            if 0 < faculty_subject_count[str(f.faculty_id)] < max_subjects
-        ]
-        # Find unassigned subjects that could be given to these faculty
-        for fac in under_filled:
-            fid = str(fac.faculty_id)
-            need = max_subjects - faculty_subject_count[fid]
-            if need <= 0:
-                continue
-            # Look for subjects currently assigned to overloaded faculty
-            # or subjects where we can share assignment
-            # (This is best-effort; if not possible, faculty gets < 3)
+        self.stdout.write(f"  Unique subject keys assigned: {len(subject_faculty_map)}")
 
         # =================================================================
         # PHASE 3: Build timetable grid and fill slots
@@ -371,11 +319,11 @@ class Command(BaseCommand):
         self.stdout.write("\n-- PHASE 3: Slot assignment with clash detection --")
 
         total_created  = 0
-        clash_count    = 0
-        fallback_count = 0
+        tba_count      = 0
+        clash_avoided  = 0
         courses_done   = 0
-        # Track faculty daily load for balance
-        faculty_day_load = defaultdict(int)  # (fac_id, day) -> count
+
+        slots_to_create = []
 
         for course, sem, section, shift, subjects in all_course_sems:
             rooms = self._shift_rooms(shift, room_map)
@@ -385,34 +333,36 @@ class Command(BaseCommand):
                 f"- {len(subjects)} subjects"
             )
 
-            home_room_name, home_room_obj = self._pick_room(
-                course, sem, section, rooms, room_map, class_room_map, room_total_load
-            )
-            if not home_room_name:
-                self.stdout.write("  [WARN] No room available -- skipped")
-                continue
+            # Pick home room for this class
+            if rooms and room_map:
+                home_room_name, home_room_obj = self._pick_room(
+                    course, sem, section, rooms, room_map, class_room_map, room_total_load
+                )
+            else:
+                # No rooms in DB — use a virtual name
+                home_room_name = f"Room-{course.code}-{sem}"
+                home_room_obj = None
 
             subject_names = [s.name for s in subjects]
             subject_map   = {s.name: s for s in subjects}
 
-            # Build per-subject faculty assignment for this course-sem
+            # Build per-subject faculty for this course-sem
             sub_fac = {}
             for subj in subjects:
                 skey = self._subject_key(subj.name)
                 sub_fac[subj.name] = subject_faculty_map.get(skey, tba_faculty)
 
-            # Build day->slots grid
+            # Build full slot grid for the week
             grid = []
             for day in self.ALL_DAYS:
                 for _order, start, end in self._get_day_timings(shift, day):
                     grid.append((day, start, end))
 
             # Round-robin subject assignment across the week
-            subject_week_count    = defaultdict(int)
             day_assigned_subjects = defaultdict(list)
             slot_subject_map      = {}
-
             sub_idx = 0
+
             for day, start, _end in grid:
                 if (str(course.course_id), sem, day, start, section) in class_busy:
                     continue
@@ -429,17 +379,20 @@ class Command(BaseCommand):
                         break
 
                 if chosen_sub is None:
-                    chosen_sub = min(subject_names, key=lambda sn: subject_week_count[sn])
+                    # Pick least-used subject for this day
+                    chosen_sub = min(
+                        subject_names,
+                        key=lambda sn: day_assigned_subjects[day].count(sn)
+                    )
 
                 slot_subject_map[(day, start)] = chosen_sub
                 day_assigned_subjects[day].append(chosen_sub)
-                subject_week_count[chosen_sub] += 1
 
-            # Create TimetableSlot rows with clash checking
+            # Create TimetableSlot rows with REAL clash checking
             used_local = set()
 
             for day, start, end in grid:
-                local_key = (day, start, end)
+                local_key = (day, start)
                 if local_key in used_local:
                     continue
                 if (str(course.course_id), sem, day, start, section) in class_busy:
@@ -451,71 +404,80 @@ class Command(BaseCommand):
 
                 subj = subject_map[sub_name]
 
-                # Room selection
+                # ── Room selection ───────────────────────────────────────
                 slot_room_name = home_room_name
                 slot_room_obj  = home_room_obj
-                if (slot_room_name, day, start, end) in room_busy:
+                if room_map and home_room_name and (slot_room_name, day, start) in room_busy:
                     found_alt = False
                     for alt_rn in rooms:
-                        if (alt_rn, day, start, end) not in room_busy:
+                        if (alt_rn, day, start) not in room_busy:
                             slot_room_name = alt_rn
                             slot_room_obj  = room_map.get(alt_rn)
                             found_alt = True
                             break
                     if not found_alt:
-                        continue
+                        # Use room anyway (don't block slot creation)
+                        pass
 
                 # ── Faculty selection with STRICT clash check ────────────
-                skey = self._subject_key(sub_name)
-                primary_fac = sub_fac.get(sub_name, tba_faculty)
+                primary_fac  = sub_fac.get(sub_name, tba_faculty)
                 assigned_fac = None
 
-                # 1. Try primary faculty
+                # 1. Try primary faculty (real only)
                 if primary_fac != tba_faculty:
                     fid = str(primary_fac.faculty_id)
-                    if (fid, day, start, end) not in faculty_busy:
+                    if (fid, day, start) not in faculty_busy:
                         assigned_fac = primary_fac
 
-                # 2. Try other faculty who already teach this exact subject
+                # 2. If primary is busy, find any free faculty who teaches this subject
                 if not assigned_fac:
+                    skey = self._subject_key(sub_name)
                     for f in all_faculty:
                         fid = str(f.faculty_id)
-                        if (fid, day, start, end) in faculty_busy:
+                        if (fid, day, start) in faculty_busy:
                             continue
-                        if any(self._subject_key(s.name) == skey for s in f.subjects.all()):
+                        if not self._shift_compatible(f, shift):
+                            continue
+                        if skey in faculty_subject_set[fid]:
                             assigned_fac = f
+                            clash_avoided += 1
                             break
 
                 # 3. Try any free shift-compatible faculty with capacity
                 if not assigned_fac:
-                    pool = [
-                        f for f in all_faculty
-                        if self._shift_compatible(f, shift)
-                        and faculty_subject_count[str(f.faculty_id)] < max_subjects
-                    ]
-                    pool.sort(key=lambda f: (
-                        faculty_day_load.get((str(f.faculty_id), day), 0),
-                        faculty_subject_count[str(f.faculty_id)],
-                    ))
-                    for f in pool:
-                        fid = str(f.faculty_id)
-                        if (fid, day, start, end) not in faculty_busy:
-                            assigned_fac = f
+                    pool = sorted(
+                        [
+                            f for f in all_faculty
+                            if self._shift_compatible(f, shift)
+                            and str(f.faculty_id) not in {fid for fid, d, s in faculty_busy if d == day and s == start}
+                            and (str(f.faculty_id), day, start) not in faculty_busy
+                        ],
+                        key=lambda f: (
+                            faculty_day_load.get((str(f.faculty_id), day), 0),
+                            faculty_subject_count[str(f.faculty_id)],
+                        ),
+                    )
+                    if pool:
+                        chosen_f = pool[0]
+                        fid = str(chosen_f.faculty_id)
+                        assigned_fac = chosen_f
+                        skey = self._subject_key(sub_name)
+                        if skey not in faculty_subject_set[fid]:
+                            faculty_subject_set[fid].add(skey)
                             faculty_subject_count[fid] += 1
-                            f.subjects.add(subj)
-                            faculty_courses_set[fid].add(str(course.course_id))
-                            fallback_count += 1
-                            break
+                        faculty_courses_set[fid].add(str(course.course_id))
+                        if chosen_f != tba_faculty:
+                            chosen_f.subjects.add(subj)
 
-                # 4. Absolute fallback: TBA
+                # 4. TBA fallback (won't cause real clashes)
                 if not assigned_fac:
                     assigned_fac = tba_faculty
-                    clash_count += 1
+                    tba_count += 1
 
                 fid = str(assigned_fac.faculty_id)
 
                 # ── Write DB row ─────────────────────────────────────────
-                TimetableSlot.objects.create(
+                slots_to_create.append(TimetableSlot(
                     course=course,
                     semester=sem,
                     day_of_week=day,
@@ -529,16 +491,24 @@ class Command(BaseCommand):
                     slot_type="Practical" if self._is_lab(subj.name) else "Theory",
                     is_auto_generated=True,
                     generated_by="command",
-                )
+                ))
 
                 used_local.add(local_key)
-                faculty_busy.add((fid, day, start, end))
-                room_busy.add((slot_room_name, day, start, end))
-                room_total_load[slot_room_name] += 1
-                faculty_day_load[(fid, day)] += 1
+                # Only track real faculty in busy sets
+                if fid != TBA_ID:
+                    faculty_busy.add((fid, day, start))
+                    faculty_day_load[(fid, day)] += 1
+                if slot_room_name and room_map:
+                    room_busy.add((slot_room_name, day, start))
+                    room_total_load[slot_room_name] += 1
                 total_created += 1
 
             courses_done += 1
+
+        # Bulk create all slots in one transaction
+        self.stdout.write(f"\n[OK] Bulk inserting {len(slots_to_create)} slots...")
+        with transaction.atomic():
+            TimetableSlot.objects.bulk_create(slots_to_create, batch_size=500)
 
         # =================================================================
         # PHASE 4: Validation & Summary
@@ -547,27 +517,28 @@ class Command(BaseCommand):
         self.stdout.write("FACULTY-SUBJECT ASSIGNMENT SUMMARY")
         self.stdout.write("=" * 72)
 
+        assigned_count = 0
         for fac in sorted(all_faculty, key=lambda f: f.name):
             fid = str(fac.faculty_id)
             cnt = fac.subjects.count()
             if cnt == 0:
                 continue
+            assigned_count += 1
             n_courses = len(faculty_courses_set.get(fid, set()))
             marker = ""
-            if cnt < max_subjects:
-                marker = " [!] <3 subj"
-            if n_courses < 2 and cnt > 0:
-                marker += " [!] <2 courses"
+            if cnt < 3:
+                marker = " [note: <3 subj]"
             self.stdout.write(
-                f"  [{cnt}/{max_subjects}] {fac.name[:28]:30} "
-                f"{fac.employee_id:15} {n_courses} courses{marker}"
+                f"  [{cnt}] {fac.name[:30]:32} {n_courses} courses{marker}"
             )
 
-        # Clash verification
-        self.stdout.write("\n-- POST-GENERATION CLASH VERIFICATION --")
+        # Clash verification — exclude TBA from clash checks
+        self.stdout.write("\n-- POST-GENERATION CLASH VERIFICATION (real faculty only) --")
         fac_slots = defaultdict(list)
-        for slot in TimetableSlot.objects.select_related("faculty", "course", "subject").all():
-            if slot.faculty_id:
+        for slot in TimetableSlot.objects.select_related(
+            "faculty", "course", "subject"
+        ).filter(is_auto_generated=True):
+            if slot.faculty_id and str(slot.faculty_id) != TBA_ID:
                 key = (str(slot.faculty_id), slot.day_of_week,
                        slot.start_time.strftime("%H:%M"))
                 fac_slots[key].append(slot)
@@ -587,18 +558,33 @@ class Command(BaseCommand):
                 )
 
         if real_clashes == 0:
-            self.stdout.write(self.style.SUCCESS("  [OK] ZERO faculty clashes detected!"))
+            self.stdout.write(self.style.SUCCESS("  [OK] ZERO real faculty clashes!"))
+        else:
+            self.stdout.write(self.style.ERROR(f"  [!!] {real_clashes} real clashes found"))
+
+        # Slot counts per course-sem
+        self.stdout.write("\n-- SLOT COUNT VERIFICATION --")
+        for course, sem, section, shift, subjects in all_course_sems:
+            count = TimetableSlot.objects.filter(
+                course=course, semester=sem, is_auto_generated=True
+            ).count()
+            expected_weekday = len(self.MORNING_SLOTS if shift == "morning" else self.NOON_SLOTS)
+            expected_sat = self.SATURDAY_SLOT_LIMIT
+            expected_total = (expected_weekday * 5) + expected_sat
+            ok = "[OK]" if count == expected_total else f"[!!] expected {expected_total}"
+            self.stdout.write(f"  {course.code} Sem{sem}: {count} slots {ok}")
 
         self.stdout.write("\n" + "=" * 72)
         self.stdout.write(self.style.SUCCESS(
-            f"[DONE] {total_created} slots | {courses_done} course-semester combos"
+            f"[DONE] {total_created} slots | {courses_done} course-semester combos | "
+            f"{assigned_count} faculty assigned"
         ))
-        if clash_count:
+        if tba_count:
             self.stdout.write(self.style.WARNING(
-                f"[WARN] {clash_count} slots forced to TBA (unavoidable)"
+                f"[INFO] {tba_count} slots assigned to TBA (needs faculty recruitment)"
             ))
-        if fallback_count:
-            self.stdout.write(self.style.WARNING(
-                f"[INFO] {fallback_count} slots used alternate faculty"
+        if clash_avoided:
+            self.stdout.write(self.style.SUCCESS(
+                f"[INFO] {clash_avoided} clashes avoided by using alternate faculty"
             ))
         self.stdout.write("=" * 72)

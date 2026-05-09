@@ -1211,21 +1211,6 @@ def check_liveness(request):
     return Response(result)
 
 
-# ─── Faculty: Multi-Face Attendance (batch endpoint) ─────────────────────────
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def mark_attendance_multi_face(request):
-    """POST /mark-attendance-multi-face/ — detect ALL faces in one frame.
-    Convenience wrapper that calls mark_attendance_face with multi_face=True.
-    """
-    # Clone data as request.data is often immutable
-    data = request.data.copy()
-    data["multi_face"] = True
-    request._full_data = data
-    return mark_attendance_face(request)
-
 
 
 # ─── Student/Faculty: Attendance Report ──────────────────────────────────────

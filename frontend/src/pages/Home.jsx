@@ -7,7 +7,7 @@ const Home = () => {
     <Layout>
       {/* Hero Section */}
       <section
-        className="relative h-[80vh] min-h-[600px] flex items-center justify-center overflow-hidden"
+        className="relative h-[80vh] min-h-[400px] sm:min-h-[600px] flex items-center justify-center overflow-hidden"
       >
         <div 
           className="absolute inset-0 z-0 scale-110 animate-float"
@@ -33,18 +33,18 @@ const Home = () => {
              </span>
           </div>
           
-          <h1 className="font-serif text-6xl md:text-8xl text-white mb-6 font-bold tracking-tighter animate-slide-up bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">
+          <h1 className="font-serif text-3xl sm:text-5xl md:text-8xl text-white mb-4 sm:mb-6 font-bold tracking-tighter animate-slide-up bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">
             Centre of Excellence
           </h1>
 
-          <p className="font-serif italic text-[var(--gu-gold)] text-xl md:text-2xl mb-12 opacity-90 animate-slide-up animate-stagger-2 max-w-2xl mx-auto leading-relaxed">
+          <p className="font-serif italic text-[var(--gu-gold)] text-sm sm:text-xl md:text-2xl mb-8 sm:mb-12 opacity-90 animate-slide-up animate-stagger-2 max-w-2xl mx-auto leading-relaxed">
             "Empowering future leaders through technology and academic innovation"
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 animate-slide-up animate-stagger-3">
             <Link
               to="/login"
-              className="group relative bg-[var(--gu-gold)] text-[#0A0505] font-black uppercase tracking-widest px-10 py-5 rounded-sm shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:shadow-[0_0_40px_rgba(212,175,55,0.5)] transition-all duration-500 overflow-hidden"
+              className="group relative bg-[var(--gu-gold)] text-[#0A0505] font-black uppercase tracking-widest px-6 sm:px-10 py-3 sm:py-5 text-sm sm:text-base rounded-sm shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:shadow-[0_0_40px_rgba(212,175,55,0.5)] transition-all duration-500 overflow-hidden"
             >
               <span className="relative z-10">Access Portal</span>
               <div className="absolute inset-0 bg-white translate-x-[-100%] group-hover:translate-x-[0%] transition-transform duration-500 skew-x-12"></div>
@@ -52,7 +52,7 @@ const Home = () => {
             
             <Link
               to="/academics"
-              className="group px-10 py-5 border border-white/20 text-white font-black uppercase tracking-widest rounded-sm hover:bg-white/10 transition-all duration-300 backdrop-blur-md"
+              className="group px-6 sm:px-10 py-3 sm:py-5 text-sm sm:text-base border border-white/20 text-white font-black uppercase tracking-widest rounded-sm hover:bg-white/10 transition-all duration-300 backdrop-blur-md"
             >
               Explore Programs
             </Link>
@@ -83,7 +83,7 @@ const Home = () => {
       </section>
 
       {/* Quick Info Cards */}
-      <section className="py-32 px-6 bg-[var(--gu-cream)] relative">
+      <section className="py-16 sm:py-32 px-4 sm:px-6 bg-[var(--gu-cream)] relative">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20 animate-slide-up">
             <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-[var(--gu-red-dark)] mb-4">University Ecosystem</h2>

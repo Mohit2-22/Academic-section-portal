@@ -62,26 +62,24 @@ const Timetable = () => {
   const [courseSemesters, setCourseSemesters] = useState({});
   const [selectedSection, setSelectedSection] = useState("A");
   
-  // GANPAT DCS Timetable Slots - Morning Shift (BTECH + Masters)
+  // Morning Shift slots — MUST match generate_timetable.py MORNING_SLOTS exactly
   const morningSlots = [
     { label: "Slot 1", start: "08:00", end: "08:55" },
-    { label: "Slot 2", start: "08:55", end: "09:40" },
-    { label: "BREAK", start: "09:40", end: "10:15" },
-    { label: "Slot 3", start: "10:15", end: "11:10" },
-    { label: "Slot 4", start: "11:10", end: "12:00" },
-    { label: "Slot 5", start: "12:00", end: "12:55" },
+    { label: "Slot 2", start: "08:55", end: "10:00" },
+    { label: "BREAK", start: "10:00", end: "10:30" },
+    { label: "Slot 3", start: "10:30", end: "11:25" },
+    { label: "Slot 4", start: "11:25", end: "12:20" },
+    { label: "Slot 5", start: "12:20", end: "13:15" },
   ];
-  
-  // GANPAT DCS Timetable Slots - Noon Shift (BCA + BSc)
+
+  // Noon Shift slots — MUST match generate_timetable.py NOON_SLOTS exactly
   const noonSlots = [
     { label: "Slot 1", start: "12:00", end: "12:55" },
-    { label: "BREAK", start: "12:55", end: "13:25" },
-    { label: "Slot 2", start: "13:25", end: "14:20" },
-    { label: "LUNCH", start: "14:20", end: "15:15" },
-    { label: "Slot 3", start: "15:15", end: "16:10" },
-    { label: "TEA", start: "16:10", end: "16:30" },
-    { label: "Slot 4", start: "16:30", end: "17:20" },
-    { label: "Slot 5", start: "17:20", end: "18:10" },
+    { label: "Slot 2", start: "12:55", end: "13:50" },
+    { label: "BREAK", start: "13:50", end: "14:20" },
+    { label: "Slot 3", start: "14:20", end: "15:15" },
+    { label: "Slot 4", start: "15:15", end: "16:10" },
+    { label: "Slot 5", start: "16:10", end: "17:05" },
   ];
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -178,20 +176,19 @@ const Timetable = () => {
   };
 
   const handleGenerateTimetable = async () => {
-    if (timetableGenerated) {
-      alert("Timetable has already been generated for this semester. It will be re-enabled after the next Semester Config toggle.");
-      return;
-    }
-    if (!window.confirm("Initialize AI Timetable Generator? This will clear unstructured slots and automatically allocate an optimal class schedule without clashes.")) return;
+    if (!window.confirm("Generate AI Timetable for ALL courses and semesters?\nThis will clear existing auto-generated slots and create a full conflict-free schedule.")) return;
     setGeneratingAI(true);
     try {
       const res = await academicsAPI.generateTimetable("Ahmedabad", true);
-      alert(res.data.message || "AI Timetable Generation Successful!");
-      setTimetableGenerated(true);
+      const stats = res.data.stats || {};
+      alert(`✅ ${res.data.message || "AI Timetable Generation Successful!"}\n\nSlots created: ${stats.generated || 0}\nTotal in DB: ${stats.total || 0}`);
+      setTimetableGenerated(false); // Reset so it can be run again if needed
       fetchTimetable();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || "Error generating AI timetable.");
+      const errMsg = err.response?.data?.error || "Error generating AI timetable.";
+      const detail = err.response?.data?.detail || "";
+      alert(`❌ ${errMsg}${detail ? "\n\n" + detail.slice(0, 300) : ""}`);
     } finally {
       setGeneratingAI(false);
     }
@@ -295,11 +292,8 @@ const Timetable = () => {
   const shiftLabel = courseShift === "MORNING" 
     ? `Morning Shift (${formatTime12("08:00")} - ${formatTime12("13:00")})` 
     : `Noon Shift (${formatTime12("12:00")} - ${formatTime12("18:10")})`;
-  const saturdayActiveLabels =
-    courseShift === "MORNING"
-      ? new Set(["Slot 1", "Slot 2", "BREAK", "Slot 3"])
-      : new Set(["Slot 1", "BREAK", "Slot 2", "LUNCH", "Slot 3"]);
-  const isSaturdayOpenSlot = (slotLabel) => saturdayActiveLabels.has(slotLabel);
+  // Saturday: only first 3 lecture slots are open (no BREAK on Saturday)
+  const isSaturdayOpenSlot = (slotLabel) => ["Slot 1", "Slot 2", "Slot 3"].includes(slotLabel);
 
   // Build subject legend from timetable data
   const subjectLegend = {};
@@ -367,21 +361,12 @@ const Timetable = () => {
               <div className="relative group">
                 <button
                   onClick={handleGenerateTimetable}
-                  disabled={generatingAI || timetableGenerated}
-                  className={`px-6 py-2.5 rounded text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(212,175,55,0.2)] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border ${
-                    timetableGenerated
-                      ? 'bg-white/5 border-white/10 text-white/30'
-                      : 'bg-black border-[var(--gu-gold)] text-[var(--gu-gold)] hover:bg-[var(--gu-gold)] hover:text-black'
-                  }`}
+                  disabled={generatingAI}
+                  className="px-6 py-2.5 rounded text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(212,175,55,0.2)] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border bg-black border-[var(--gu-gold)] text-[var(--gu-gold)] hover:bg-[var(--gu-gold)] hover:text-black"
                 >
-                  {generatingAI ? <Loader2 className="w-4 h-4 animate-spin" /> : timetableGenerated ? '🔒' : '✨'}
-                  {timetableGenerated ? 'Already Generated' : 'AI Auto-Generate'}
+                  {generatingAI ? <Loader2 className="w-4 h-4 animate-spin" /> : '✨'}
+                  {generatingAI ? 'Generating...' : 'AI Auto-Generate'}
                 </button>
-                {timetableGenerated && (
-                  <div className="absolute left-0 top-full mt-2 bg-[#2D0A0A] border border-amber-500/20 text-amber-300 text-[9px] uppercase tracking-widest font-bold px-4 py-2 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl">
-                    Re-enabled after Semester Config toggle
-                  </div>
-                )}
               </div>
 
               <button

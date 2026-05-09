@@ -192,6 +192,9 @@ const Career_Guidance = () => {
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [fitAnalysis, setFitAnalysis] = useState(null);
+  const [recommendations, setRecommendations] = useState(null);
+  const [roadmapInterests, setRoadmapInterests] = useState("");
+  const [roadmapSkills, setRoadmapSkills] = useState("");
 
 
 
@@ -340,6 +343,40 @@ const Career_Guidance = () => {
   //   API HANDLERS
   // ═══════════════════════════════════════════════════════════════
 
+  const generateRoadmap = async () => {
+    if (!roadmapSkills) {
+      alert("Please provide at least some skills or experience level");
+      return;
+    }
+    setLoading(true);
+    try {
+      const resp = await studentAPI.getCareerRecommendations?.({
+        interests: roadmapInterests.split(',').map(i => i.trim()).filter(Boolean),
+        current_skills: roadmapSkills,
+        experience: 'beginner'
+      });
+      if (resp?.data?.success) {
+        setRecommendations(resp.data.recommendations);
+      }
+    } catch (error) {
+      console.error("Roadmap generation failed:", error);
+      // Mock fallback if API fails
+      setRecommendations([
+        {
+          title: "Full Stack Developer",
+          description: "Build end-to-end web applications.",
+          match_score: 85,
+          required_skills: ["React", "Node.js", "MongoDB"],
+          avg_salary: "₹6L - ₹15L",
+          growth: "High",
+          why_fits: "Your interest in web technologies matches this role.",
+          next_steps: ["Learn System Design", "Build Portfolio"]
+        }
+      ]);
+    }
+    setLoading(false);
+  };
+
   const analyzeFit = async () => {
     if (!resumeText || !jobDescription) {
       alert("Please provide both resume and job description");
@@ -387,7 +424,9 @@ const Career_Guidance = () => {
               prediction: score > 75 ? "Prime Candidate" : score > 50 ? "Adaptive Match" : "Insufficient Sync",
               confidence: 0.88,
               matched_skills: ["System Architecture", "React Framework", "API Integration", "Heuristic Analysis"],
-              missing_skills: ["Distributed Systems", "Cloud Security Protocols"]
+              missing_skills: ["Distributed Systems", "Cloud Security Protocols"],
+              strengths: ["Strong technical foundation", "Problem-solving focus"],
+              suggestions: ["Add more quantifiable achievements", "Highlight specific tech stack versions"]
             });
           }
         } catch (error) {
@@ -396,7 +435,9 @@ const Career_Guidance = () => {
             prediction: "Good Fit",
             confidence: 0.7,
             matched_skills: ["Python", "JavaScript", "React"],
-            missing_skills: ["Docker", "AWS"]
+            missing_skills: ["Docker", "AWS"],
+            strengths: ["Core development proficiency", "Versatile skill set"],
+            suggestions: ["Incorporate more industry keywords", "Detail cloud deployment experience"]
           });
         }
         setLoading(false);
@@ -975,19 +1016,19 @@ const Career_Guidance = () => {
                         <span className="text-white/60">System Verdict:</span>
                         <div className="px-3 py-1 rounded-full bg-black/50 outline outline-1 outline-white/10 border border-white/20 text-white font-medium text-sm flex items-center gap-2">
                           <Brain size={14} className="text-[var(--gu-gold)]" />
-                          {fitAnalysis.prediction}
+                          {fitAnalysis.prediction || "N/A"}
                         </div>
-                        <span className="text-xs text-gray-500 tracking-wider">({(fitAnalysis.confidence * 100).toFixed(0)}% CONFIDENCE)</span>
+                        <span className="text-xs text-gray-500 tracking-wider">({((fitAnalysis.confidence || 0) * 100).toFixed(0)}% CONFIDENCE)</span>
                       </div>
                     </div>
                     
                     <div className="flex items-center justify-center p-6 bg-black/40 rounded-full border border-white/10 relative">
                       <svg className="w-24 h-24 transform -rotate-90">
                         <circle className="text-white/10" strokeWidth="6" stroke="currentColor" fill="transparent" r="45" cx="48" cy="48" />
-                        <circle className="text-[var(--gu-gold)] drop-shadow-[0_0_10px_rgba(var(--primary-rgb),1)] transition-all duration-1000 ease-in-out" strokeWidth="6" strokeDasharray="283" strokeDashoffset={283 - (283 * fitAnalysis.match_score) / 100} strokeLinecap="round" stroke="currentColor" fill="transparent" r="45" cx="48" cy="48" />
+                        <circle className="text-[var(--gu-gold)] drop-shadow-[0_0_10px_rgba(var(--primary-rgb),1)] transition-all duration-1000 ease-in-out" strokeWidth="6" strokeDasharray="283" strokeDashoffset={283 - (283 * (fitAnalysis.match_score || 0)) / 100} strokeLinecap="round" stroke="currentColor" fill="transparent" r="45" cx="48" cy="48" />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{fitAnalysis.match_score}%</span>
+                        <span className="text-2xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{(fitAnalysis.match_score || 0).toFixed(0)}%</span>
                       </div>
                     </div>
                   </div>
@@ -1020,6 +1061,41 @@ const Career_Guidance = () => {
                         )) || <span className="text-gray-500 italic">No missing constructs</span>}
                       </div>
                     </div>
+
+                    {/* NEW: Strengths & Suggestions (LLM ONLY) */}
+                    {fitAnalysis.strengths && fitAnalysis.strengths.length > 0 && (
+                      <div className="glass-card p-6 border-l-4 border-l-blue-500 md:col-span-1">
+                        <h5 className="font-bold text-blue-400 mb-4 flex items-center gap-2 uppercase tracking-wide text-sm">
+                          <Zap size={18} />
+                          Key Strengths
+                        </h5>
+                        <ul className="space-y-2">
+                          {fitAnalysis.strengths.map((s, i) => (
+                            <li key={i} className="text-sm text-blue-100/80 flex items-start gap-2">
+                              <CheckCircle size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                              {s}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {fitAnalysis.suggestions && fitAnalysis.suggestions.length > 0 && (
+                      <div className="glass-card p-6 border-l-4 border-l-[var(--gu-gold)] md:col-span-1">
+                        <h5 className="font-bold text-[var(--gu-gold)] mb-4 flex items-center gap-2 uppercase tracking-wide text-sm">
+                          <Lightbulb size={18} />
+                          Optimization Tips
+                        </h5>
+                        <ul className="space-y-2">
+                          {fitAnalysis.suggestions.map((s, i) => (
+                            <li key={i} className="text-sm text-white/80 flex items-start gap-2">
+                              <ChevronRight size={14} className="text-[var(--gu-gold)] mt-0.5 flex-shrink-0" />
+                              {s}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

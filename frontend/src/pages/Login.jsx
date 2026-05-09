@@ -492,7 +492,7 @@ const Login = () => {
   return (
     <Layout>
       <div
-        className="flex-grow flex flex-col items-center justify-center py-20 px-4 relative"
+        className="flex-grow flex flex-col items-center justify-center py-10 sm:py-20 px-3 sm:px-4 relative"
         style={{ background: "#1a0000" }}
       >
         <div
@@ -527,7 +527,7 @@ const Login = () => {
             </button>
           </div>
 
-          <div className="p-8">
+          <div className="p-5 sm:p-8">
             <h2 className="font-serif text-2xl font-semibold mb-6 text-center text-[var(--gu-red-dark)]">
               {role === "student" ? "Student Login" : "Faculty Login"}
             </h2>

@@ -71,8 +71,7 @@
 |------|--------|----------|----------------|---------------|--------|
 | F28 | Faculty Portal | Faculty creates a new lecture session | Session saved in `ai_lecture_sessions`; QR generated | Session created; QR displayed | ✅ Pass |
 | F29 | Faculty Portal | Faculty views today's sessions | Active sessions for assigned subjects listed | Today's sessions shown correctly | ✅ Pass |
-| F30 | Faculty Portal | Faculty exports attendance to Google Sheets | Attendance data written to Google Sheets; success message | Data exported to Sheets | ✅ Pass |
-| F31 | Faculty Portal | Faculty downloads attendance as CSV | CSV file downloaded with correct headers and data | CSV downloaded successfully | ✅ Pass |
+| F30 | Faculty Portal | Faculty downloads attendance as CSV | CSV file downloaded with correct headers and data | CSV downloaded successfully | ✅ Pass |
 | F32 | Faculty Portal | Faculty views assigned timetable | Timetable slots filtered by faculty_id displayed | Personal timetable displayed | ✅ Pass |
 
 ---
@@ -122,7 +121,7 @@
 | I09 | Password Reset Full Flow | Student requests OTP → receives email → enters OTP → sets new password → logs in | OTP validated, `is_used = TRUE`; new password set; login succeeds | Complete reset flow works | ✅ Pass |
 | I10 | Admin Semester Toggle to Student Dashboard | Admin toggles ODD→EVEN → students log in → dashboard shows EVEN semester subjects | `semester_config.current_parity = 'EVEN'`; student dashboard, timetable, attendance update | Semester toggle reflects across portal | ✅ Pass |
 | I11 | Device Binding to Proxy Prevention | Student marks attendance on Device A → same student tries from Device B | Device B rejected with `device_verified = FALSE`; attendance not marked | Proxy attempt blocked | ✅ Pass |
-| I12 | Google Sheets Export Full Flow | Faculty creates session → attendance marked → faculty clicks export → data in Google Sheets | All attendance records for session exported correctly to linked Google Sheet | Export successful | ✅ Pass |
+
 | I13 | Bulk Student Import to Profile Creation | Admin uploads Excel/CSV file → students imported → students can log in | All students created in `students` and `users` tables; login works for each | Bulk import flow works | ✅ Pass |
 | I14 | Timetable Conflict Detection and Resolution | Admin generates timetable with overlapping faculty schedules → conflict detected → admin resolves → timetable republished | Conflict stored in `timetable_conflicts`; after resolution `is_resolved = TRUE`; timetable republished | Conflict detection and resolution works | ✅ Pass |
 | I15 | Notification Delivery to Target Role | Admin creates notification with target='student' → all students see notification in dashboard | Notification visible on all student dashboards | Broadcast notification works | ✅ Pass |

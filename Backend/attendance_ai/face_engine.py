@@ -93,18 +93,23 @@ def _get_face_recognizer():
 
 # ── DeepFace lazy import (fallback, only used if installed) ───────────────────
 _deepface = None
+_deepface_tried = False
 
 
 def _get_deepface():
     """Lazy-load DeepFace — returns None if not installed."""
-    global _deepface
-    if _deepface is None:
-        try:
-            from deepface import DeepFace
-            _deepface = DeepFace
-        except ImportError:
-            logger.info("DeepFace not installed, using OpenCV SFace for embeddings.")
-            return None
+    global _deepface, _deepface_tried
+    if _deepface is not None:
+        return _deepface
+    if _deepface_tried:
+        return None
+    _deepface_tried = True
+    try:
+        from deepface import DeepFace
+        _deepface = DeepFace
+    except ImportError:
+        logger.info("DeepFace not installed, using OpenCV SFace for embeddings.")
+        return None
     return _deepface
 
 
@@ -112,13 +117,17 @@ def _get_deepface():
 _yolo_model = None
 YOLO_MODEL_PATH = os.path.join(settings.MEDIA_ROOT, "models", "yolov8n-face.pt")
 YOLO_AVAILABLE = False
+_yolo_tried = False
 
 
 def _get_yolo():
     """Lazy-load YOLOv8 face detection model."""
-    global _yolo_model, YOLO_AVAILABLE
+    global _yolo_model, YOLO_AVAILABLE, _yolo_tried
     if _yolo_model is not None:
         return _yolo_model
+    if _yolo_tried:
+        return None
+    _yolo_tried = True
     try:
         from ultralytics import YOLO
         model_dir = os.path.join(settings.MEDIA_ROOT, "models")
@@ -472,7 +481,7 @@ def get_all_embeddings_in_frame(rgb_image):
 def cosine_similarity(vec1, vec2):
     """Cosine similarity between two vectors. Returns 0.0 on dimension mismatch."""
     if vec1.shape != vec2.shape:
-        logger.debug(f"Dimension mismatch: live={vec1.shape} stored={vec2.shape}")
+        logger.warning(f"Embedding dimension mismatch: live={vec1.shape} stored={vec2.shape} — student may need re-registration")
         return 0.0
     norm1 = np.linalg.norm(vec1)
     norm2 = np.linalg.norm(vec2)

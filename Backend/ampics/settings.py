@@ -221,9 +221,10 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
 # ── AI / LLM Keys ────────────────────────────────────────────────────────────
-OPENROUTER_API_KEY = config("OPENROUTER_API_KEY", default="")
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL = "nvidia/nemotron-ultra-253b-v1:free"
+OPENROUTER_API_KEY = config("OPENROUTER_API_KEY", default="").strip()
+NVIDIA_API_KEY = config("NVIDIA_API_KEY", default="").strip()
+OPENROUTER_BASE_URL = config("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1/chat/completions").strip()
+OPENROUTER_MODEL = config("OPENROUTER_MODEL", default="nousresearch/hermes-3-llama-3.1-405b:free").strip()
 
 # ── Site Config (used for QR code URL generation) ────────────────────────────
 SITE_DOMAIN = config("SITE_DOMAIN", default="localhost:5173")

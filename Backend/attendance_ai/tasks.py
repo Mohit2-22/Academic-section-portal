@@ -23,7 +23,7 @@ def _call_llm(system_prompt: str, user_prompt: str) -> str:
     import requests as req
     api_key = getattr(settings, 'OPENROUTER_API_KEY', '') or os.getenv('OPENROUTER_API_KEY', '')
     base_url = getattr(settings, 'OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1/chat/completions')
-    model = getattr(settings, 'OPENROUTER_MODEL', 'nvidia/nemotron-ultra-253b-v1:free')
+    model = getattr(settings, 'OPENROUTER_MODEL', 'nousresearch/hermes-3-llama-3.1-405b:free')
 
     if not api_key:
         logger.warning("OPENROUTER_API_KEY not set — skipping LLM call.")

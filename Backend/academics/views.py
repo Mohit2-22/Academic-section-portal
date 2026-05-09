@@ -585,56 +585,22 @@ def admin_generate_timetable(request):
         )
 
     branch = request.data.get("branch", "Ahmedabad")
-    clear = request.data.get("clear", True)
-
-    # Check if timetable already generated this semester
-    try:
-        sem_config = SemesterConfig.objects.first()
-        if sem_config and sem_config.timetable_generated:
-            return Response(
-                {"error": "Timetable already generated for this semester. Wait for semester toggle to re-enable."},
-                status=status.HTTP_409_CONFLICT,
-            )
-    except Exception:
-        pass
 
     try:
-        from academics.management.commands.generate_timetable import (
-            Command as TimetableCommand,
-        )
-
-        if clear:
-            deleted = TimetableSlot.objects.filter(is_auto_generated=True).delete()[0]
-        else:
-            deleted = 0
-
-        cmd = TimetableCommand()
-        result = {"generated": 0, "locked": 0, "conflicts": 0}
-
-        # Capture stdout
+        from django.core.management import call_command
         from io import StringIO
 
-        old_stdout = sys.stdout
-        sys.stdout = StringIO()
-        try:
-            cmd.handle()
-        except Exception as e:
-            pass
-        output = sys.stdout.getvalue()
-        sys.stdout = old_stdout
+        # Always allow regeneration — clear auto slots first
+        deleted = TimetableSlot.objects.filter(is_auto_generated=True).delete()[0]
 
-        # Parse output for stats
-        if "[DONE] Generated" in output:
-            import re
+        # Run via Django management command (handles its own options/stdout properly)
+        out = StringIO()
+        call_command("generate_timetable", stdout=out)
 
-            match = re.search(r"\[DONE\] Generated (\d+) slots", output)
-            if match:
-                result["generated"] = int(match.group(1))
-
-        total_slots = TimetableSlot.objects.count()
         auto_slots = TimetableSlot.objects.filter(is_auto_generated=True).count()
+        total_slots = TimetableSlot.objects.count()
 
-        # Mark timetable as generated in SemesterConfig
+        # Mark timetable as generated (best-effort)
         try:
             sem_config, _ = SemesterConfig.objects.get_or_create(pk=1)
             sem_config.timetable_generated = True
@@ -645,19 +611,18 @@ def admin_generate_timetable(request):
         return Response(
             {
                 "success": True,
-                "message": f"Timetable generated for {branch} campus",
+                "message": f"Timetable generated successfully — {auto_slots} slots created across all courses & semesters.",
                 "stats": {
-                    "generated": result["generated"],
-                    "locked": result["locked"],
-                    "conflicts": result["conflicts"],
+                    "generated": auto_slots,
                     "deleted": deleted,
                     "total": total_slots,
                 },
             }
         )
     except Exception as e:
+        import traceback
         return Response(
-            {"success": False, "error": str(e)},
+            {"success": False, "error": str(e), "detail": traceback.format_exc()},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
