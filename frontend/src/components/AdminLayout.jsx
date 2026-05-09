@@ -125,7 +125,7 @@ const AdminLayout = ({ children }) => {
                 </button>
 
                 {showNotifications && (
-                <div className="absolute right-0 mt-4 w-96 glass-panel border-white/10 shadow-2xl z-50 overflow-hidden animate-reveal-down origin-top-right">
+                <div className="absolute right-0 mt-4 w-96 bg-[#220808] border border-white/10 shadow-2xl z-50 overflow-hidden animate-reveal-down origin-top-right">
                     <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center">
                     <h3 className="font-serif text-white text-xl">Tactical Awareness</h3>
                     <span className="text-[9px] font-black text-[var(--gu-gold)] uppercase tracking-widest">Live Feed</span>
@@ -183,7 +183,7 @@ const AdminLayout = ({ children }) => {
                     </div>
                 </button>
                 {showProfileMenu && (
-                    <div className="absolute right-0 mt-4 w-64 glass-panel border-white/10 shadow-2xl z-50 overflow-hidden animate-reveal-down origin-top-right">
+                    <div className="absolute right-0 mt-4 w-64 bg-[#220808] border border-white/10 shadow-2xl z-50 overflow-hidden animate-reveal-down origin-top-right">
                         <div className="p-6 bg-white/5 border-b border-white/5">
                             <p className="text-white font-serif text-lg">{userName}</p>
                             <p className="text-[9px] font-black uppercase tracking-widest text-[var(--gu-gold)] mt-1">Super Admin Account</p>

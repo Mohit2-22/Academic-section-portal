@@ -3,7 +3,7 @@ import FacultyLayout from '../../components/FacultyLayout';
 import {
   QrCode, Clock, Users, ChevronDown, Loader2, AlertCircle,
   Copy, Download, CheckCircle, XCircle, RefreshCw, Calendar,
-  Camera, Square, Wifi, Filter,
+  Camera, Square, Wifi, Filter, MapPin, Navigation, Shield,
   BookOpen, Zap, FileSpreadsheet, FileDown,
   ExternalLink, ScanFace, BarChart2, TrendingUp
 } from 'lucide-react';
@@ -115,6 +115,12 @@ function CreateLectureTab() {
   const [exportResult, setExportResult] = useState(null);
   const pollRef = useRef(null);
 
+  // ——— Geofencing state ———
+  const [gpsLocation, setGpsLocation] = useState(null); // { lat, lng }
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState('');
+  const [geofenceRadius, setGeofenceRadius] = useState(200); // default 200m
+
   // ——— Face scan from create-lecture ———
   const [faceScanMode, setFaceScanMode] = useState(false);
   const videoRef = useRef(null);
@@ -126,6 +132,8 @@ function CreateLectureTab() {
   const [scanning, setScanning] = useState(false);
   const [scanLog, setScanLog] = useState([]);
   const [boundingBoxes, setBoundingBoxes] = useState([]);
+  const [scanError, setScanError] = useState('');
+  const [lastScanInfo, setLastScanInfo] = useState('');
   const scanSessionRef = useRef(null);  // track which session we're scanning for
 
   useEffect(() => { fetchSubjects(); return () => { stopPolling(); stopFaceScanning(); stopFaceCamera(); }; }, []);
@@ -202,12 +210,34 @@ function CreateLectureTab() {
   const stopPolling = () => { if (pollRef.current) clearInterval(pollRef.current); };
   const fetchLiveStatus = async (sid) => { try { const res = await attendanceAI.getLectureStatus(sid); setLiveStatus(res.data); } catch {} };
 
+  // ——— Capture Faculty GPS ———
+  const captureGPS = () => {
+    if (!navigator.geolocation) { setGpsError('Geolocation not supported by your browser.'); return; }
+    setGpsLoading(true); setGpsError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsError(err.code === 1 ? 'Location access denied. Please allow GPS.' : 'Failed to get location. Try again.');
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.subject_id || !form.date || !form.start_time || !form.end_time) { setFormError('All fields are required.'); return; }
+    if (!gpsLocation) { setFormError('📍 GPS location is mandatory. Please capture your current location.'); return; }
     setCreating(true); setFormError('');
     try {
-      const payload = { ...form, total_students: students.length || 0 };
+      const payload = {
+        ...form, total_students: students.length || 0,
+        latitude: gpsLocation.lat, longitude: gpsLocation.lng,
+        geofence_radius: geofenceRadius,
+      };
       const res = await attendanceAI.createLecture(payload);
       setSession(res.data);
       startPolling(res.data.session_id);
@@ -222,9 +252,14 @@ function CreateLectureTab() {
       setFormError('Please fill Course, Subject, Date, and Time before starting face scan.');
       return;
     }
+    if (!gpsLocation) { setFormError('📍 GPS location is mandatory. Please capture your current location.'); return; }
     setCreating(true); setFormError('');
     try {
-      const payload = { ...form, total_students: students.length || 0 };
+      const payload = {
+        ...form, total_students: students.length || 0,
+        latitude: gpsLocation.lat, longitude: gpsLocation.lng,
+        geofence_radius: geofenceRadius,
+      };
       const res = await attendanceAI.createLecture(payload);
       setSession(res.data);
       scanSessionRef.current = res.data.session_id;
@@ -252,7 +287,14 @@ function CreateLectureTab() {
   // ——— Face Camera + Auto-Scan (for Create Lecture tab) ———
   const startFaceCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+      // Use back camera (environment) for classroom scanning
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 }, 
+          facingMode: { ideal: 'environment' } 
+        } 
+      });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -274,11 +316,14 @@ function CreateLectureTab() {
 
   const captureFaceFrame = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return null;
+    const video = videoRef.current;
+    if (video.readyState < 2) return null; // not ready
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    canvas.width = 640; canvas.height = 480;
-    ctx.drawImage(videoRef.current, 0, 0, 640, 480);
-    return canvas.toDataURL('image/jpeg', 0.8);
+    canvas.width = 640;
+    canvas.height = 480;
+    ctx.drawImage(video, 0, 0, 640, 480);
+    return canvas.toDataURL('image/jpeg', 0.80);
   }, []);
 
   // Draw bounding boxes on overlay canvas
@@ -286,30 +331,38 @@ function CreateLectureTab() {
     const overlay = overlayCanvasRef.current;
     const video = videoRef.current;
     if (!overlay || !video) return;
-    overlay.width = video.videoWidth || 640;
-    overlay.height = video.videoHeight || 480;
+    
+    overlay.width = video.clientWidth || video.videoWidth || 640;
+    overlay.height = video.clientHeight || video.videoHeight || 480;
+    
     const ctx = overlay.getContext('2d');
     ctx.clearRect(0, 0, overlay.width, overlay.height);
 
+    // Match the capture canvas resolution (640x480)
+    const scaleX = overlay.width / 640;
+    const scaleY = overlay.height / 480;
+
     boxes.forEach(box => {
-      // Mirror x because video is mirrored (scale-x-[-1])
-      const mirroredX = overlay.width - box.x - box.w;
+      const x = box.x * scaleX;
+      const y = box.y * scaleY;
+      const w = box.w * scaleX;
+      const h = box.h * scaleY;
+
       const color = box.recognized ? '#22c55e' : '#ef4444';
       ctx.strokeStyle = color;
       ctx.lineWidth = 2.5;
       ctx.shadowColor = color;
       ctx.shadowBlur = 8;
-      ctx.strokeRect(mirroredX, box.y, box.w, box.h);
+      ctx.strokeRect(x, y, w, h);
 
-      // Label background
       const label = box.recognized ? `${box.label} ${box.confidence}%` : `Unknown`;
       ctx.font = 'bold 11px Inter, sans-serif';
       const textW = ctx.measureText(label).width + 8;
       ctx.fillStyle = box.recognized ? 'rgba(34,197,94,0.85)' : 'rgba(239,68,68,0.85)';
-      ctx.fillRect(mirroredX, box.y - 20, textW, 20);
+      ctx.fillRect(x, y - 20, textW, 20);
       ctx.fillStyle = '#fff';
       ctx.shadowBlur = 0;
-      ctx.fillText(label, mirroredX + 4, box.y - 5);
+      ctx.fillText(label, x + 4, y - 5);
     });
   }, []);
 
@@ -320,35 +373,77 @@ function CreateLectureTab() {
 
     const doScan = async () => {
       const frame = captureFaceFrame();
-      if (!frame) return;
+      if (!frame) {
+        setLastScanInfo('Camera not ready...');
+        return;
+      }
       try {
+        setScanError('');
         const res = await attendanceAI.markAttendanceMultiFace(sid, frame);
         const data = res.data;
 
-        // Draw bounding boxes from YOLO detections
+        // Show scan info
+        const faceCount = data.faces_detected || 0;
+        const markedCount = data.newly_marked?.length || 0;
+        const unknownCount = data.unknown_count || 0;
+        setLastScanInfo(`Detected: ${faceCount} face(s) | Marked: ${markedCount} | Unknown: ${unknownCount}`);
+
+        // Draw bounding boxes
         if (data.bounding_boxes?.length > 0) {
           setBoundingBoxes(data.bounding_boxes);
           drawBoundingBoxes(data.bounding_boxes);
-        } else if (data.faces_detected === 0) {
-          // Clear if no faces
+        } else {
           setBoundingBoxes([]);
           const overlay = overlayCanvasRef.current;
-          if (overlay) overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+          if (overlay) {
+            const ctx2 = overlay.getContext('2d');
+            ctx2.clearRect(0, 0, overlay.width, overlay.height);
+          }
         }
 
         // Multi-face response — update log
-        if (data.multi_face && data.newly_marked?.length > 0) {
-          const newEntries = data.newly_marked.map(s => ({
+        const logEntries = [];
+        
+        if (data.newly_marked?.length > 0) {
+          data.newly_marked.forEach(s => logEntries.push({
             student_name: s.student_name,
             roll_no: s.roll_no,
             confidence: s.confidence_score,
             time: new Date().toLocaleTimeString(),
             status: s.status,
+            type: 'success'
           }));
-          setScanLog(prev => [...newEntries, ...prev].slice(0, 30));
+        }
+
+        if (data.already_marked?.length > 0) {
+          data.already_marked.forEach(s => logEntries.push({
+            student_name: s.student_name,
+            roll_no: s.roll_no,
+            time: new Date().toLocaleTimeString(),
+            status: 'Already Present',
+            type: 'info'
+          }));
+        }
+
+        if (data.not_in_course?.length > 0) {
+          data.not_in_course.forEach(s => logEntries.push({
+            student_name: s.student_name,
+            roll_no: s.roll_no,
+            time: new Date().toLocaleTimeString(),
+            status: 'Not in Course',
+            type: 'error'
+          }));
+        }
+
+        if (logEntries.length > 0) {
+          setScanLog(prev => [...logEntries, ...prev].slice(0, 30));
           fetchLiveStatus(sid);
         }
-      } catch { /* silent â€“ next scan will retry */ }
+      } catch (err) {
+        console.error('Scan error:', err);
+        setScanError('Connection error or server failure');
+        setLastScanInfo(`Error: ${err?.response?.data?.error || 'Server failed to process scan'}`);
+      }
     };
 
     doScan();
@@ -432,7 +527,7 @@ function CreateLectureTab() {
           {/* Camera Feed */}
           <div className="bg-[var(--gu-red-card)] border border-[var(--gu-border)] rounded-lg p-5">
             <div className="relative aspect-[4/3] bg-black rounded-lg overflow-hidden">
-              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
+              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
               <canvas ref={canvasRef} className="hidden" />
               {/* Bounding box overlay — sits on top of mirrored video */}
               <canvas
@@ -442,9 +537,9 @@ function CreateLectureTab() {
               />
               {scanning && (
                 <div className="absolute inset-0 border-2 border-emerald-500/70 rounded-lg pointer-events-none">
-                  <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 px-2 py-1 rounded-full">
-                    <Wifi className="w-3 h-3 text-emerald-400 animate-pulse" />
-                    <span className="text-emerald-400 text-xs font-semibold">YOLO scanning every 2s...</span>
+                  <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 px-2.5 py-1.5 rounded-full backdrop-blur-sm border border-emerald-500/30">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                    <span className="text-emerald-400 text-[10px] uppercase tracking-wider font-bold">AI Active Scanning</span>
                   </div>
                   {boundingBoxes.length > 0 && (
                     <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded-full text-xs text-white">
@@ -496,6 +591,18 @@ function CreateLectureTab() {
               <p className="text-xs text-white/40 mt-2">{present} student{present !== 1 ? 's' : ''} marked present via AI face recognition</p>
             </div>
 
+            {/* Scan Status */}
+            {lastScanInfo && (
+              <div className={`border rounded-lg px-4 py-2.5 text-xs font-mono ${
+                scanError ? 'bg-red-900/30 border-red-500/30 text-red-300' : 'bg-blue-900/20 border-blue-500/20 text-blue-300'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {scanError ? <AlertCircle className="w-3.5 h-3.5 shrink-0" /> : <Wifi className="w-3.5 h-3.5 shrink-0 animate-pulse" />}
+                  {lastScanInfo}
+                </div>
+              </div>
+            )}
+
             {/* Scan Log */}
             <div className="bg-[var(--gu-red-card)] border border-[var(--gu-border)] rounded-lg p-5">
               <h3 className="font-semibold text-sm text-white/70 mb-3">Recognition Log</h3>
@@ -503,16 +610,27 @@ function CreateLectureTab() {
                 {scanLog.length === 0 ? (
                   <div className="text-center py-8 text-white/30">
                     <ScanFace className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-xs">Waiting for face detections...</p>
+                    <p className="text-xs">{scanning ? 'Scanning for faces...' : 'Waiting for face detections...'}</p>
                   </div>
                 ) : scanLog.map((log, i) => (
-                  <div key={i} className="flex items-center justify-between bg-green-900/20 border border-green-500/20 rounded-lg px-3 py-2">
+                  <div key={i} className={`flex items-center justify-between border rounded-lg px-3 py-2 ${
+                    log.type === 'error' ? 'bg-red-900/20 border-red-500/20' : 'bg-green-900/20 border-green-500/20'
+                  }`}>
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
-                      <div><p className="text-xs font-semibold text-white">{log.student_name}</p><p className="text-[10px] text-white/40">{log.roll_no}</p></div>
+                      {log.type === 'error' ? (
+                        <Smartphone className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      ) : (
+                        <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                      )}
+                      <div>
+                        <p className="text-xs font-semibold text-white">{log.student_name}</p>
+                        <p className="text-[10px] text-white/40">{log.roll_no}</p>
+                      </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-semibold text-green-400">{log.confidence}%</p>
+                      <p className={`text-xs font-semibold ${log.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                        {log.type === 'error' ? 'Not in Course' : `${log.confidence}%`}
+                      </p>
                       <p className="text-[10px] text-white/40">{log.time}</p>
                     </div>
                   </div>
@@ -617,6 +735,12 @@ function CreateLectureTab() {
                   <span className="font-medium text-white/80">{v}</span>
                 </div>
               ))}
+              {session.location_set && (
+                <div className="flex justify-between text-sm pt-1 border-t border-[var(--gu-border)]">
+                  <span className="text-white/40 flex items-center gap-1"><Shield className="w-3 h-3 text-emerald-400" /> Geofence</span>
+                  <span className="font-semibold text-emerald-400">{session.geofence_radius}m radius ✓</span>
+                </div>
+              )}
             </div>
 
             {liveStatus?.students?.length > 0 && (
@@ -814,6 +938,63 @@ function CreateLectureTab() {
               <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
               <input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))}
                 className="w-full pl-10 pr-4 py-3 border border-[var(--gu-border)] rounded-lg text-sm text-white bg-[#3D0F0F] focus:outline-none focus:border-[var(--gu-gold)] color-scheme-dark" />
+            </div>
+          </div>
+        </div>
+
+        {/* ── GPS Location & Geofence Radius (MANDATORY) ── */}
+        <div className="border border-[var(--gu-gold)]/30 rounded-lg p-5 bg-gradient-to-br from-[var(--gu-gold)]/5 to-transparent">
+          <div className="flex items-center gap-2 mb-3">
+            <Shield className="w-4 h-4 text-[var(--gu-gold)]" />
+            <h3 className="text-sm font-bold text-[var(--gu-gold)] uppercase tracking-wider">GPS Geofencing (Required)</h3>
+          </div>
+          <p className="text-xs text-white/40 mb-4">Students must be within the selected radius of your current location to mark attendance.</p>
+
+          {/* GPS Capture */}
+          <div className="flex items-center gap-3 mb-4">
+            <button type="button" onClick={captureGPS} disabled={gpsLoading}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                gpsLocation
+                  ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300'
+                  : 'bg-[var(--gu-gold)] text-[var(--gu-red-deep)] hover:bg-[#e6c949] shadow-lg'
+              }`}>
+              {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : gpsLocation ? <CheckCircle className="w-4 h-4" /> : <Navigation className="w-4 h-4" />}
+              {gpsLoading ? 'Getting Location...' : gpsLocation ? 'Location Captured ✓' : 'Capture My Location'}
+            </button>
+            {gpsLocation && (
+              <div className="flex items-center gap-1.5 text-xs text-white/50">
+                <MapPin className="w-3 h-3 text-emerald-400" />
+                <span>{gpsLocation.lat.toFixed(5)}, {gpsLocation.lng.toFixed(5)}</span>
+              </div>
+            )}
+          </div>
+          {gpsError && (
+            <div className="flex items-center gap-2 p-2 bg-red-900/30 border border-red-500/30 rounded-lg mb-3">
+              <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <p className="text-red-300 text-xs">{gpsError}</p>
+            </div>
+          )}
+
+          {/* Geofence Radius Selector */}
+          <div>
+            <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Allowed Distance from You</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 100, label: '100m', desc: 'Small Room' },
+                { value: 200, label: '200m', desc: 'Campus Block' },
+                { value: 500, label: '500m', desc: 'Full Campus' },
+              ].map(opt => (
+                <button key={opt.value} type="button"
+                  onClick={() => setGeofenceRadius(opt.value)}
+                  className={`py-3 px-3 rounded-lg text-center transition-all border ${
+                    geofenceRadius === opt.value
+                      ? 'bg-[var(--gu-gold)] text-[var(--gu-red-deep)] border-[var(--gu-gold)] shadow-lg shadow-amber-900/30 scale-[1.02]'
+                      : 'bg-[#3D0F0F] text-white/60 border-[var(--gu-border)] hover:border-[var(--gu-gold)]/50 hover:text-white/80'
+                  }`}>
+                  <span className="text-lg font-bold block">{opt.label}</span>
+                  <span className="text-[10px] opacity-70">{opt.desc}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>

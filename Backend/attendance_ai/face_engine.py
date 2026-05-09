@@ -26,22 +26,85 @@ logger = logging.getLogger(__name__)
 ENCODINGS_DIR = os.path.join(settings.MEDIA_ROOT, "face_encodings")
 SNAPSHOTS_DIR = os.path.join(settings.MEDIA_ROOT, "attendance_snapshots")
 MODEL_NAME = "VGG-Face"
-SIMILARITY_THRESHOLD = 0.60          # cosine similarity threshold for match
+SIMILARITY_THRESHOLD = 0.55          # cosine similarity threshold for match
 LATE_THRESHOLD_MINUTES = 15          # minutes after start_time → mark as Late
 
 os.makedirs(ENCODINGS_DIR, exist_ok=True)
 os.makedirs(SNAPSHOTS_DIR, exist_ok=True)
 
-# ── DeepFace lazy import ──────────────────────────────────────────────────────
+# ── OpenCV DNN Face Models (lightweight, no TensorFlow) ──────────────────────
+_face_detector = None
+_face_recognizer = None
+
+FACE_DETECT_MODEL_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+FACE_RECOG_MODEL_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+
+FACE_DETECT_MODEL_PATH = os.path.join(settings.MEDIA_ROOT, "models", "yunet_face_detect.onnx")
+FACE_RECOG_MODEL_PATH = os.path.join(settings.MEDIA_ROOT, "models", "sface_recognition.onnx")
+
+
+def _download_model(url, path):
+    """Download model file if not already present."""
+    if os.path.exists(path):
+        return True
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:
+        import requests as _req
+        logger.info(f"Downloading model: {os.path.basename(path)}...")
+        r = _req.get(url, timeout=60, stream=True)
+        if r.status_code == 200:
+            with open(path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            logger.info(f"Model downloaded: {os.path.basename(path)}")
+            return True
+        logger.error(f"Model download failed: HTTP {r.status_code}")
+        return False
+    except Exception as e:
+        logger.error(f"Model download error: {e}")
+        return False
+
+
+def _get_face_detector(width=320, height=320):
+    """Lazy-load OpenCV YuNet face detector."""
+    global _face_detector
+    if _face_detector is None:
+        if not _download_model(FACE_DETECT_MODEL_URL, FACE_DETECT_MODEL_PATH):
+            return None
+        _face_detector = cv2.FaceDetectorYN.create(
+            FACE_DETECT_MODEL_PATH, "", (width, height),
+            score_threshold=0.6, nms_threshold=0.3, top_k=5000
+        )
+    _face_detector.setInputSize((width, height))
+    return _face_detector
+
+
+def _get_face_recognizer():
+    """Lazy-load OpenCV SFace recognizer."""
+    global _face_recognizer
+    if _face_recognizer is None:
+        if not _download_model(FACE_RECOG_MODEL_URL, FACE_RECOG_MODEL_PATH):
+            return None
+        _face_recognizer = cv2.FaceRecognizerSF.create(
+            FACE_RECOG_MODEL_PATH, ""
+        )
+    return _face_recognizer
+
+
+# ── DeepFace lazy import (fallback, only used if installed) ───────────────────
 _deepface = None
 
 
 def _get_deepface():
-    """Lazy-load DeepFace to avoid slow startup."""
+    """Lazy-load DeepFace — returns None if not installed."""
     global _deepface
     if _deepface is None:
-        from deepface import DeepFace
-        _deepface = DeepFace
+        try:
+            from deepface import DeepFace
+            _deepface = DeepFace
+        except ImportError:
+            logger.info("DeepFace not installed, using OpenCV SFace for embeddings.")
+            return None
     return _deepface
 
 
@@ -161,74 +224,91 @@ def augment_image(rgb_image):
 def detect_faces_yolo(rgb_image):
     """
     Detect all faces in an image.
-    Robust version:
-      1. If YOLO face model exists -> use it.
-      2. If general YOLO exists -> use it (it might detect heads/faces as objects).
-      3. Fallback: Haar cascade on full frame.
+    Robust multi-detector approach:
+      1. YOLO Face (Best quality)
+      2. OpenCV YuNet (Fast & Accurate)
+      3. Haar Cascade (Reliable fallback)
     """
-    yolo = _get_yolo()
     faces = []
     h_img, w_img = rgb_image.shape[:2]
     
+    # ── Preprocessing: CLAHE for better detection in varying light ──
+    try:
+        lab = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+        cl = clahe.apply(l)
+        limg = cv2.merge((cl,a,b))
+        enhanced_rgb = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
+    except Exception:
+        enhanced_rgb = rgb_image
+
+    # 1. YOLO Detection
+    yolo = _get_yolo()
     if yolo is not None and YOLO_AVAILABLE:
         try:
-            bgr = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
-            # Use lower confidence for multi-face
-            results = yolo(bgr, conf=0.15, verbose=False)
+            bgr = cv2.cvtColor(enhanced_rgb, cv2.COLOR_RGB2BGR)
+            results = yolo(bgr, conf=0.20, verbose=False)
             for result in results:
                 for box in result.boxes:
                     x1, y1, x2, y2 = map(int, box.xyxy[0].cpu().numpy())
                     conf = float(box.conf[0])
-                    cls = int(box.cls[0])
                     
-                    # If it's a face model, class 0 is face.
-                    # If it's generic YOLO, class 0 is person.
-                    is_face_model = "face" in str(getattr(yolo, 'ckpt_path', '')).lower()
+                    # Pad slightly for better recognition
+                    pad_w, pad_h = int((x2-x1)*0.1), int((y2-y1)*0.1)
+                    x1, y1 = max(0, x1-pad_w), max(0, y1-pad_h)
+                    x2, y2 = min(w_img, x2+pad_w), min(h_img, y2+pad_h)
                     
-                    # For generic model, we might want to crop the top 1/3 for "face"
-                    # but for now let's just accept the box if it's small or we're desperate.
+                    if x2 - x1 < 20 or y2 - y1 < 20: continue
                     
-                    x1, y1 = max(0, x1), max(0, y1)
-                    x2, y2 = min(w_img, x2), min(h_img, y2)
-                    if x2 - x1 < 15 or y2 - y1 < 15: continue
-                    
-                    face_crop = rgb_image[y1:y2, x1:x2]
+                    face_crop = enhanced_rgb[y1:y2, x1:x2]
                     faces.append({
                         "x": x1, "y": y1, "w": x2 - x1, "h": y2 - y1,
                         "confidence": conf, "face_crop": face_crop
                     })
-            if faces:
-                return faces
+            if faces: return faces
         except Exception as e:
             logger.error(f"YOLO detection error: {e}")
 
-    # ── Fallback to Haar Cascade (Reliable and Fast) ──
+    # 2. YuNet Detection (Fast DNN)
+    try:
+        detector = _get_face_detector(w_img, h_img)
+        if detector:
+            bgr = cv2.cvtColor(enhanced_rgb, cv2.COLOR_RGB2BGR)
+            _, detections = detector.detect(bgr)
+            if detections is not None:
+                for det in detections:
+                    bbox = det[0:4].astype(int)
+                    conf = float(det[-1])
+                    if conf < 0.5: continue
+                    x, y, w, h = bbox
+                    x, y = max(0, x), max(0, y)
+                    x2, y2 = min(w_img, x+w), min(h_img, y+h)
+                    
+                    face_crop = enhanced_rgb[y:y2, x:x2]
+                    faces.append({
+                        "x": x, "y": y, "w": x2-x, "h": y2-y,
+                        "confidence": conf, "face_crop": face_crop
+                    })
+            if faces: return faces
+    except Exception as e:
+        logger.error(f"YuNet detection error: {e}")
+
+    # 3. Haar Cascade (The OG fallback)
     try:
         cascade = _get_haar_cascade()
-        gray = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(enhanced_rgb, cv2.COLOR_RGB2GRAY)
         gray = cv2.equalizeHist(gray)
-        
-        # Detect multiple sizes - more aggressive parameters for small faces
-        rects = cascade.detectMultiScale(
-            gray, scaleFactor=1.05, minNeighbors=3, 
-            minSize=(30, 30), flags=cv2.CASCADE_SCALE_IMAGE
-        )
+        rects = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(40, 40))
         
         for (x, y, w, h) in rects:
-            x, y = max(0, x), max(0, y)
-            x2, y2 = min(w_img, x + w), min(h_img, y + h)
-            face_crop = rgb_image[y:y2, x:x2]
+            face_crop = enhanced_rgb[y:y+h, x:x+w]
             faces.append({
                 "x": x, "y": y, "w": w, "h": h,
-                "confidence": 0.5, # Haar doesn't provide confidence
-                "face_crop": face_crop
+                "confidence": 0.5, "face_crop": face_crop
             })
-            
-        if faces:
-            logger.info(f"Haar detected {len(faces)} face(s)")
-            return faces
     except Exception as e:
-        logger.error(f"Haar detection error: {e}")
+        logger.error(f"Haar error: {e}")
 
     return faces
 
@@ -240,55 +320,111 @@ def detect_faces_yolo(rgb_image):
 
 def get_embedding(rgb_image, already_cropped=False):
     """
-    Extract face embedding using DeepFace VGG-Face model.
-    Returns normalized embedding vector.
+    Extract face embedding — uses OpenCV SFace (primary) or DeepFace (fallback).
+    Returns normalized embedding vector (128-dim for SFace, 2622-dim for VGG-Face).
     """
+    # ── Try OpenCV SFace (lightweight, no TensorFlow) ──
+    recognizer = _get_face_recognizer()
+    if recognizer is not None:
+        try:
+            # Convert RGB to BGR for OpenCV
+            bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
+            h, w = bgr_image.shape[:2]
+
+            if already_cropped:
+                # Already a face crop — align and extract directly
+                # SFace needs face landmarks, so detect face in the crop
+                detector = _get_face_detector(w, h)
+                if detector is not None:
+                    _, faces_detected = detector.detect(bgr_image)
+                    if faces_detected is not None and len(faces_detected) > 0:
+                        face_aligned = recognizer.alignCrop(bgr_image, faces_detected[0])
+                        embedding = recognizer.feature(face_aligned)
+                        embedding = embedding.flatten().astype(np.float32)
+                        norm = np.linalg.norm(embedding)
+                        if norm > 0:
+                            embedding = embedding / norm
+                        return embedding
+
+                # Fallback: try using the raw crop if detection failed in crop
+                # Resize to 112x112 which is what SFace expects
+                resized = cv2.resize(bgr_image, (112, 112))
+                embedding = recognizer.feature(resized)
+                embedding = embedding.flatten().astype(np.float32)
+                norm = np.linalg.norm(embedding)
+                if norm > 0:
+                    embedding = embedding / norm
+                return embedding
+            else:
+                # Full image — detect face first, then extract embedding
+                detector = _get_face_detector(w, h)
+                if detector is not None:
+                    _, faces_detected = detector.detect(bgr_image)
+                    if faces_detected is not None and len(faces_detected) > 0:
+                        face_aligned = recognizer.alignCrop(bgr_image, faces_detected[0])
+                        embedding = recognizer.feature(face_aligned)
+                        embedding = embedding.flatten().astype(np.float32)
+                        norm = np.linalg.norm(embedding)
+                        if norm > 0:
+                            embedding = embedding / norm
+                        return embedding
+                    else:
+                        logger.debug("SFace: no face detected in image")
+                        return None
+        except Exception as e:
+            logger.warning(f"SFace embedding error: {e}")
+
+    # ── Fallback: DeepFace (only if installed) ──
     DeepFace = _get_deepface()
-    temp_path = None
-    try:
-        pil_img = Image.fromarray(rgb_image)
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            temp_path = tmp.name
-            pil_img.save(tmp, format="JPEG")
+    if DeepFace is not None:
+        temp_path = None
+        try:
+            pil_img = Image.fromarray(rgb_image)
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                temp_path = tmp.name
+                pil_img.save(tmp, format="JPEG")
 
-        # Optimization: if already cropped by YOLO/Haar, skip redundant detection
-        if already_cropped:
-            detector_backends = ["skip", "opencv"]
-        else:
-            detector_backends = ["opencv", "ssd", "skip"]
+            if already_cropped:
+                detector_backends = ["skip", "opencv"]
+            else:
+                detector_backends = ["opencv", "ssd", "skip"]
 
-        result = None
-        for backend in detector_backends:
-            try:
-                result = DeepFace.represent(
-                    img_path=temp_path,
-                    model_name=MODEL_NAME,
-                    enforce_detection=(backend != "skip"),
-                    detector_backend=backend,
-                    align=True
-                )
-                if result and len(result) > 0:
-                    break
-            except Exception as det_err:
-                logger.debug(f"detector '{backend}' failed: {det_err}")
-                continue
+            result = None
+            for backend in detector_backends:
+                try:
+                    result = DeepFace.represent(
+                        img_path=temp_path,
+                        model_name=MODEL_NAME,
+                        enforce_detection=(backend != "skip"),
+                        detector_backend=backend,
+                        align=True
+                    )
+                    if result and len(result) > 0:
+                        break
+                except Exception as det_err:
+                    logger.debug(f"detector '{backend}' failed: {det_err}")
+                    continue
 
-        if result and len(result) > 0:
-            embedding = np.array(result[0]["embedding"], dtype=np.float32)
-            norm = np.linalg.norm(embedding)
-            if norm > 0:
-                embedding = embedding / norm
-            return embedding
-        return None
-    except Exception as e:
-        logger.error(f"get_embedding error: {e}")
-        return None
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.unlink(temp_path)
-            except Exception:
-                pass
+            if result and len(result) > 0:
+                embedding = np.array(result[0]["embedding"], dtype=np.float32)
+                norm = np.linalg.norm(embedding)
+                if norm > 0:
+                    embedding = embedding / norm
+                return embedding
+            return None
+        except Exception as e:
+            logger.error(f"DeepFace get_embedding error: {e}")
+            return None
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except Exception:
+                    pass
+
+    logger.error("No face recognition backend available (neither SFace nor DeepFace)")
+    return None
+
 
 
 def get_all_embeddings_in_frame(rgb_image):
@@ -334,7 +470,10 @@ def get_all_embeddings_in_frame(rgb_image):
 
 
 def cosine_similarity(vec1, vec2):
-    """Cosine similarity between two vectors."""
+    """Cosine similarity between two vectors. Returns 0.0 on dimension mismatch."""
+    if vec1.shape != vec2.shape:
+        logger.debug(f"Dimension mismatch: live={vec1.shape} stored={vec2.shape}")
+        return 0.0
     norm1 = np.linalg.norm(vec1)
     norm2 = np.linalg.norm(vec2)
     if norm1 == 0 or norm2 == 0:
@@ -506,7 +645,7 @@ def recognize_face(b64_frame, session_id=None):
 
 def recognize_multi_faces(b64_frame, session_id=None):
     """
-    Detect and recognize ALL faces in a single frame using YOLO + DeepFace.
+    Detect and recognize ALL faces in a single frame.
     Used for classroom-wide attendance scanning.
 
     Returns:
@@ -516,18 +655,24 @@ def recognize_multi_faces(b64_frame, session_id=None):
           {"student_id": ..., "confidence": ..., "facial_area": ...},
         ],
         "unknown_count": int,
-        "bounding_boxes": [{"x":..,"y":..,"w":..,"h":..,"label":..,"confidence":..}]
+        "bounding_boxes": [{"x":.., "y":.., "w":.., "h":.., "label":.., "confidence":..}]
       }
     """
     rgb = decode_base64_image(b64_frame)
     if rgb is None:
+        logger.error("recognize_multi_faces: Cannot decode base64 frame")
         return {"faces_detected": 0, "recognized": [], "unknown_count": 0,
                 "bounding_boxes": [], "message": "Cannot decode frame"}
 
-    face_data = get_all_embeddings_in_frame(rgb)
+    logger.info(f"recognize_multi_faces: Frame decoded, shape={rgb.shape}")
 
-    if not face_data:
-        # Fallback to single face
+    # Step 1: Detect faces (get bounding boxes)
+    detected_faces = detect_faces_yolo(rgb)
+    logger.info(f"recognize_multi_faces: Detected {len(detected_faces)} face(s)")
+
+    if not detected_faces:
+        # Last resort: Try single-face recognition
+        logger.info("recognize_multi_faces: No faces from detector, trying single-face fallback")
         single = recognize_face(b64_frame, session_id)
         if single.get("recognized"):
             return {
@@ -541,9 +686,9 @@ def recognize_multi_faces(b64_frame, session_id=None):
                 "bounding_boxes": [],
             }
         return {"faces_detected": 0, "recognized": [], "unknown_count": 0,
-                "bounding_boxes": [], "message": "No faces detected"}
+                "bounding_boxes": [], "message": "No faces detected in frame"}
 
-    # Load all stored embeddings
+    # Step 2: Load stored embeddings
     npy_files = [f for f in os.listdir(ENCODINGS_DIR) if f.endswith(".npy")]
     stored_embeddings = {}
     for filename in npy_files:
@@ -553,23 +698,44 @@ def recognize_multi_faces(b64_frame, session_id=None):
             stored_embeddings[sid] = np.load(fpath)
         except Exception:
             continue
+    logger.info(f"recognize_multi_faces: Loaded {len(stored_embeddings)} stored embeddings")
 
+    # Step 3: For each detected face, extract embedding and match
     recognized = []
     unknown_count = 0
     bounding_boxes = []
 
-    for face in face_data:
-        live_emb = face["embedding"]
-        area = face.get("facial_area", {})
+    for i, face_info in enumerate(detected_faces):
+        area = {
+            "x": face_info["x"],
+            "y": face_info["y"],
+            "w": face_info["w"],
+            "h": face_info["h"],
+        }
+
+        # Extract embedding from face crop
+        face_crop = face_info.get("face_crop")
+        live_emb = None
+        if face_crop is not None and face_crop.size > 0:
+            try:
+                face_resized = cv2.resize(face_crop, (224, 224))
+                live_emb = get_embedding(face_resized, already_cropped=True)
+            except Exception as emb_err:
+                logger.warning(f"Face {i}: embedding extraction failed: {emb_err}")
+
+        # Match against stored embeddings
         best_sid = None
         best_score = 0.0
 
-        if live_emb is not None:
+        if live_emb is not None and len(stored_embeddings) > 0:
             for sid, stored_emb in stored_embeddings.items():
                 score = cosine_similarity(live_emb, stored_emb)
                 if score > best_score:
                     best_score = score
                     best_sid = sid
+            logger.info(f"Face {i}: best match={best_sid}, score={best_score:.4f}")
+        else:
+            logger.info(f"Face {i}: no embedding extracted (emb={'ok' if live_emb is not None else 'None'}, stored={len(stored_embeddings)})")
 
         if best_score >= SIMILARITY_THRESHOLD and best_sid:
             recognized.append({
@@ -578,10 +744,8 @@ def recognize_multi_faces(b64_frame, session_id=None):
                 "facial_area": area,
             })
             bounding_boxes.append({
-                "x": area.get("x", 0),
-                "y": area.get("y", 0),
-                "w": area.get("w", 0),
-                "h": area.get("h", 0),
+                "x": area["x"], "y": area["y"],
+                "w": area["w"], "h": area["h"],
                 "label": best_sid,
                 "confidence": round(best_score * 100, 1),
                 "recognized": True,
@@ -589,29 +753,34 @@ def recognize_multi_faces(b64_frame, session_id=None):
         else:
             unknown_count += 1
             bounding_boxes.append({
-                "x": area.get("x", 0),
-                "y": area.get("y", 0),
-                "w": area.get("w", 0),
-                "h": area.get("h", 0),
+                "x": area["x"], "y": area["y"],
+                "w": area["w"], "h": area["h"],
                 "label": "Unknown",
                 "confidence": round(best_score * 100, 1),
                 "recognized": False,
             })
 
-    # Save snapshot of the full frame
-    from datetime import date
-    today = date.today().strftime("%Y-%m-%d")
-    snap_dir = os.path.join(SNAPSHOTS_DIR, today)
-    os.makedirs(snap_dir, exist_ok=True)
-    suffix = f"_multi_{session_id}" if session_id else "_multi"
-    snap_path = os.path.join(snap_dir, f"classroom{suffix}.jpg")
-    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(snap_path, bgr)
+    # Save snapshot
+    try:
+        from datetime import date
+        today = date.today().strftime("%Y-%m-%d")
+        snap_dir = os.path.join(SNAPSHOTS_DIR, today)
+        os.makedirs(snap_dir, exist_ok=True)
+        suffix = f"_multi_{session_id}" if session_id else "_multi"
+        snap_path = os.path.join(snap_dir, f"classroom{suffix}.jpg")
+        bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(snap_path, bgr)
+        snapshot_rel = f"attendance_snapshots/{today}/{os.path.basename(snap_path)}"
+    except Exception as snap_err:
+        logger.warning(f"Snapshot save failed: {snap_err}")
+        snapshot_rel = ""
+
+    logger.info(f"recognize_multi_faces DONE: {len(detected_faces)} detected, {len(recognized)} recognized, {unknown_count} unknown")
 
     return {
-        "faces_detected": len(face_data),
+        "faces_detected": len(detected_faces),
         "recognized": recognized,
         "unknown_count": unknown_count,
         "bounding_boxes": bounding_boxes,
-        "snapshot_path": f"attendance_snapshots/{today}/{os.path.basename(snap_path)}",
+        "snapshot_path": snapshot_rel,
     }

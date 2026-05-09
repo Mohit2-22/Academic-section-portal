@@ -189,9 +189,9 @@ export default function LiveFaceAttendance() {
               {/* Scan overlay */}
               {scanning && (
                 <div className="absolute inset-0 border-2 border-[#D4AF37]/70 rounded-xl pointer-events-none">
-                  <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 px-2 py-1 rounded-full">
-                    <Wifi className="w-3 h-3 text-[#D4AF37] animate-pulse" />
-                    <span className="text-[#D4AF37] text-xs font-semibold">Scanning...</span>
+                  <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full backdrop-blur-md border border-[#D4AF37]/30">
+                    <div className="w-2 h-2 bg-[#D4AF37] rounded-full animate-pulse shadow-[0_0_8px_rgba(212,175,55,0.8)]" />
+                    <span className="text-[#D4AF37] text-[10px] uppercase tracking-wider font-bold">Scanning Active</span>
                   </div>
                 </div>
               )}
@@ -229,7 +229,7 @@ export default function LiveFaceAttendance() {
               )}
             </div>
             <p className="text-xs text-gray-400 text-center mt-2">
-              {scanning ? 'Auto-scanning every 3 seconds...' : 'Camera will scan for faces automatically every 3s.'}
+              {scanning ? 'Smart recognition system engaged.' : 'AI will automatically detect and mark faces.'}
             </p>
           </div>
 

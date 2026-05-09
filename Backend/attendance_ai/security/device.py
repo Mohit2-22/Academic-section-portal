@@ -59,10 +59,10 @@ def get_or_register_device(student_user, device_id: str, user_agent: str = "") -
 
     # ── First registration ────────────────────────────────────────────────────
     if not trusted_qs.exists():
-        StudentDevice.objects.create(
+        StudentDevice.objects.get_or_create(
             student=student_user,
             device_id=device_id,
-            device_ua=user_agent[:500],
+            defaults={"device_ua": user_agent[:500]},
         )
         logger.info(
             f"Device binding: REGISTERED new device for {student_user.email} "
@@ -85,19 +85,25 @@ def get_or_register_device(student_user, device_id: str, user_agent: str = "") -
             "message": "Device verified.",
         }
 
-    # ── Mismatch — potential proxy attempt ────────────────────────────────────
-    logger.warning(
-        f"Device binding: MISMATCH for {student_user.email}. "
-        f"Expected one of {list(trusted_qs.values_list('device_id', flat=True))[:3]}, "
-        f"got [{device_id[:20]}...]"
+    # ── Mismatch — auto-register new device (soft binding) ──────────────────
+    # Since we already have GPS + face verification, device binding is soft.
+    # Auto-register the new device to avoid blocking legitimate students.
+    logger.info(
+        f"Device binding: AUTO-REGISTER new device for {student_user.email}. "
+        f"Old devices: {list(trusted_qs.values_list('device_id', flat=True))[:3]}, "
+        f"New: [{device_id[:20]}...]"
+    )
+    # Deactivate old devices and register new one
+    trusted_qs.update(is_active=False)
+    StudentDevice.objects.get_or_create(
+        student=student_user,
+        device_id=device_id,
+        defaults={"device_ua": user_agent[:500]},
     )
     return {
-        "valid": False,
-        "first_time": False,
-        "message": (
-            "Attendance blocked: this device is not linked to your account. "
-            "Contact admin to reset your device binding."
-        ),
+        "valid": True,
+        "first_time": True,
+        "message": "Device updated and verified.",
     }
 
 

@@ -7,7 +7,6 @@ import {
 import { attendanceAI, authAPI } from '../../services/api';
 import { getDeviceId, collectGPS } from '../../utils/deviceFingerprint';
 
-
 export default function QRAttendance() {
   const { qr_token } = useParams();
   const navigate = useNavigate();
@@ -28,6 +27,7 @@ export default function QRAttendance() {
   const [selectedCamera, setSelectedCamera] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [recognizedName, setRecognizedName] = useState('');
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -192,31 +192,22 @@ export default function QRAttendance() {
     setCameraError('');
 
     try {
-      // ── Security: collect liveness frames (3 frames ~500ms apart) ──
-      const livenessFrames = [];
-      livenessFrames.push(frame); // frame 1
-      await new Promise(r => setTimeout(r, 500));
-      const f2 = captureFrame(); if (f2) livenessFrames.push(f2);
-      await new Promise(r => setTimeout(r, 500));
-      const f3 = captureFrame(); if (f3) livenessFrames.push(f3);
-
-      // ── Security: collect GPS + device fingerprint ──
-      const [{ lat, lng }, deviceId] = await Promise.all([
-        collectGPS(6000),
-        Promise.resolve(getDeviceId()),
-      ]);
+      // ── Send frame + device ID instantly (no delays) ──
+      const deviceId = getDeviceId();
+      const gps = await collectGPS(5000); // 5s timeout
 
       const res = await attendanceAI.markAttendanceQR(
         qr_token,
         frame,
-        livenessFrames,
-        lat,
-        lng,
+        [],      // no liveness frames needed
+        gps.lat,
+        gps.lng,
         deviceId,
       );
 
       if (res.data.success) {
         setSubmitSuccess(true);
+        setRecognizedName(res.data.student_name || '');
         setPhase('success');
         stopCamera();
       } else {
@@ -302,7 +293,8 @@ export default function QRAttendance() {
                     <CheckCircle className="w-12 h-12 text-green-600" />
                   </div>
                   <h2 className="text-xl font-bold text-green-600 mb-1">Attendance Marked!</h2>
-                  <p className="text-red-600 text-sm mb-4">Your attendance has been recorded.</p>
+                  <p className="text-red-700 font-bold text-lg mb-2">{recognizedName}</p>
+                  <p className="text-red-600 text-sm mb-4">Your attendance has been recorded successfully.</p>
                   
                   <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-sm p-4 mb-4 text-left border border-red-200">
                     <p className="text-sm text-red-700 mb-1"><BookOpen className="w-4 h-4 inline mr-2" />{sessionInfo?.subject_name}</p>

@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "C:\Academic-module\Backend\attendance_ai\views.py", line 299, in register_face
+    result = engine_register_face(student_id, images)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Academic-module\Backend\attendance_ai\face_engine.py", line 379, in register_face
+    embedding = get_embedding(aug_img)
+                ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Academic-module\Backend\attendance_ai\face_engine.py", line 246, in get_embedding
+    DeepFace = _get_deepface()
+               ^^^^^^^^^^^^^^^
+  File "C:\Academic-module\Backend\attendance_ai\face_engine.py", line 43, in _get_deepface
+    from deepface import DeepFace
+ModuleNotFoundError: No module named 'deepface'

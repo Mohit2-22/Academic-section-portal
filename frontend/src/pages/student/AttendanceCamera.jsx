@@ -308,8 +308,8 @@ export default function AttendanceCamera() {
           
           <div className="bg-slate-700/50 rounded-sm p-4 mb-6 text-left">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-slate-400">Student</span>
-              <span className="text-white font-medium">{profile?.name || user?.name || 'Student'}</span>
+               <span className="text-slate-400">Student</span>
+               <span className="text-white font-medium">{profile?.name || user?.name || 'Student'}</span>
             </div>
             {selectedSession && (
               <>
