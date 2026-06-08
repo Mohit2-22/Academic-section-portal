@@ -1,0 +1,39 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/login': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/faculty': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/admin': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/admission': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/superadmin': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/logout': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    }
+  }
+})

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Portal | Royal Technosoft LTD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@100..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>window.PROFILE_ID = "{{ profile_id }}";</script>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside id="app-sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-container">
+        <!-- SVG Logo -->
+        <svg viewBox="0 0 160 56" xmlns="http://www.w3.org/2000/svg" style="height:32px">
+          <text x="0" y="40" font-family="'Sora', sans-serif" font-weight="900" font-size="36" fill="#E8B84B" letter-spacing="-2">ROYAL</text>
+          <line x1="130" y1="44" x2="146" y2="8" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+          <line x1="146" y1="8" x2="156" y2="44" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="sidebar-role-badge" style="background:rgba(16,185,129,0.1);color:var(--accent-faculty)">Faculty Portal</span>
+    </div>
+    
+    <nav class="sidebar-menu">
+      <button class="nav-item active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+      <button class="nav-item" onclick="switchTab('batches')"><i data-lucide="users"></i><span>My Batches</span></button>
+      <button class="nav-item" onclick="switchTab('lectures')"><i data-lucide="video"></i><span>Lectures</span></button>
+      <button class="nav-item" onclick="switchTab('materials')"><i data-lucide="upload"></i><span>Upload Materials</span></button>
+      <button class="nav-item" onclick="switchTab('videos')"><i data-lucide="film"></i><span>Upload Videos</span></button>
+      <button class="nav-item" onclick="switchTab('assignments')"><i data-lucide="clipboard-list"></i><span>Assignments</span></button>
+      <button class="nav-item" onclick="switchTab('feedback')"><i data-lucide="star"></i><span>My Feedback</span></button>
+      <button class="nav-item" onclick="switchTab('notifications')"><i data-lucide="bell"></i><span>Notifications</span></button>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="user-avatar" id="sidebar-avatar">FC</div>
+        <div class="user-info">
+          <span class="user-name" id="sidebar-name">Faculty</span>
+          <span class="user-role">Educator Profile</span>
+        </div>
+      </div>
+      <a href="/logout" class="btn btn-secondary btn-block" style="text-decoration:none;font-size:12px;margin-top:10px">
+        <i data-lucide="log-out"></i> Logout
+      </a>
+    </div>
+  </aside>
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="main-panel">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="btn-toggle-sidebar" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1 id="page-title" class="header-title">Dashboard</h1>
+      </div>
+    </header>
+
+    <div id="content-area" class="content-scroll-container">
+
+      <!-- 1. DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <div class="welcome-banner">
+          <div>
+            <div class="welcome-name" id="welcome-name">Welcome, Faculty!</div>
+            <div class="welcome-sub">Empowering Future Tech Professionals. Manage class lectures, study items, videos, and track performance.</div>
+          </div>
+          <div class="welcome-emoji">👨‍🏫</div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">My Batches</span>
+              <span class="stat-value" id="dash-batches">0</span>
+              <span class="stat-sub">Active batches</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-faculty)"><i data-lucide="users"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Lectures</span>
+              <span class="stat-value" id="dash-lectures">0</span>
+              <span class="stat-sub">Total scheduled</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-faculty)"><i data-lucide="video"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Materials</span>
+              <span class="stat-value" id="dash-materials">0</span>
+              <span class="stat-sub">Files uploaded</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-faculty)"><i data-lucide="file-text"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Assignments</span>
+              <span class="stat-value" id="dash-assignments">0</span>
+              <span class="stat-sub">Total created</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-faculty)"><i data-lucide="clipboard-list"></i></div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="zap"></i> Quick Actions</h2>
+            <div style="display:flex;gap:12px;flex-direction:column">
+              <button class="btn btn-primary" onclick="switchTab('lectures');openModal('schedule-lecture-modal')"><i data-lucide="plus"></i> Schedule New Lecture</button>
+              <button class="btn btn-secondary" onclick="switchTab('materials')"><i data-lucide="upload"></i> Upload Course Material</button>
+              <button class="btn btn-secondary" onclick="switchTab('assignments');openModal('create-assignment-modal')"><i data-lucide="plus"></i> Create New Assignment</button>
+            </div>
+          </div>
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="video"></i> Today's Live Class Slots</h2>
+            <div id="today-lectures" class="timetable-grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. BATCHES -->
+      <section id="tab-batches" class="tab-pane">
+        <div id="batches-grid" class="cert-grid"></div>
+      </section>
+
+      <!-- 3. LECTURES -->
+      <section id="tab-lectures" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3>Scheduled Lectures</h3>
+            <button class="btn btn-primary" onclick="openModal('schedule-lecture-modal')"><i data-lucide="plus"></i> Schedule Lecture</button>
+          </div>
+          <div id="lectures-list" class="timetable-grid"></div>
+        </div>
+      </section>
+
+      <!-- 4. MATERIALS -->
+      <section id="tab-materials" class="tab-pane">
+        <div class="card">
+          <h2 class="card-title"><i data-lucide="upload-cloud"></i> Upload New Material</h2>
+          <form id="upload-material-form" onsubmit="onSubmitMaterial(event)">
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Batch *</label>
+                <select id="mat-batch" required><option value="">-- Select Batch --</option></select>
+              </div>
+              <div class="form-group">
+                <label>Subject / Course *</label>
+                <select id="mat-course" required><option value="">-- Select Subject --</option></select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Title *</label>
+              <input type="text" id="mat-title" required placeholder="e.g. Java OOP Notes - Week 3">
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <textarea id="mat-desc" placeholder="Brief description of this material..."></textarea>
+            </div>
+            
+            <!-- Drag & Drop Upload Zone -->
+            <div class="upload-zone" id="dropzone-material" onclick="document.getElementById('mat-file').click()">
+              <i data-lucide="file-text" style="width:32px;height:32px;color:var(--accent-gold);margin-bottom:8px"></i>
+              <div class="upload-zone-title" id="mat-drop-title">Drag & drop files here, or click to select</div>
+              <div class="upload-zone-sub">PDF, CSV, XLSX, PPTX, DOCX, ZIP (Max 50MB)</div>
+              <input type="file" id="mat-file" style="display:none" accept=".pdf,.csv,.xlsx,.xls,.pptx,.ppt,.docx,.doc,.txt,.zip">
+            </div>
+            <div id="mat-file-info" style="font-size:12px;color:var(--accent-gold);margin-top:8px"></div>
+            
+            <button type="submit" class="btn btn-primary" style="margin-top:16px"><i data-lucide="upload"></i> Upload Material</button>
+          </form>
+        </div>
+        
+        <div class="card">
+          <h2 class="card-title">Uploaded Materials List</h2>
+          <div id="my-materials-list" class="cert-grid"></div>
+        </div>
+      </section>
+
+      <!-- 5. VIDEOS -->
+      <section id="tab-videos" class="tab-pane">
+        <div class="card">
+          <h2 class="card-title"><i data-lucide="film"></i> Upload Video Tutorial</h2>
+          <form id="upload-video-form" onsubmit="onSubmitVideo(event)">
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Batch *</label>
+                <select id="vid-batch" required><option value="">-- Select Batch --</option></select>
+              </div>
+              <div class="form-group">
+                <label>Subject *</label>
+                <select id="vid-course" required><option value="">-- Select Subject --</option></select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Video Title *</label>
+              <input type="text" id="vid-title" required placeholder="e.g. Java Inheritance Explained">
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <textarea id="vid-desc" placeholder="What does this video cover?"></textarea>
+            </div>
+            
+            <!-- Video drag & drop -->
+            <div class="upload-zone" id="dropzone-video" onclick="document.getElementById('vid-file').click()">
+              <i data-lucide="video" style="width:32px;height:32px;color:var(--accent-gold);margin-bottom:8px"></i>
+              <div class="upload-zone-title" id="vid-drop-title">Drag & drop video, or click to select</div>
+              <div class="upload-zone-sub">MP4, WebM (Max 500MB)</div>
+              <input type="file" id="vid-file" style="display:none" accept=".mp4,.webm">
+            </div>
+            <div id="vid-file-info" style="font-size:12px;color:var(--accent-gold);margin-top:8px"></div>
+            
+            <button type="submit" class="btn btn-primary" style="margin-top:16px"><i data-lucide="upload"></i> Upload Video</button>
+          </form>
+        </div>
+        
+        <div class="card">
+          <h2 class="card-title">My Video List</h2>
+          <div id="my-videos-list" class="videos-grid"></div>
+        </div>
+      </section>
+
+      <!-- 6. ASSIGNMENTS -->
+      <section id="tab-assignments" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3>Assignments</h3>
+            <button class="btn btn-primary" onclick="openModal('create-assignment-modal')"><i data-lucide="plus"></i> Create Assignment</button>
+          </div>
+          <div id="assignments-list" class="timetable-grid"></div>
+        </div>
+      </section>
+
+      <!-- 7. FEEDBACK -->
+      <section id="tab-feedback" class="tab-pane">
+        <div class="stats-grid" id="feedback-summary"></div>
+        <div class="card">
+          <h2 class="card-title"><i data-lucide="message-square"></i> Student Comments</h2>
+          <div id="feedback-comments" class="timetable-grid"></div>
+        </div>
+      </section>
+
+      <!-- 8. NOTIFICATIONS -->
+      <section id="tab-notifications" class="tab-pane">
+        <div class="card" style="max-width:640px;margin:0 auto">
+          <h2 class="card-title"><i data-lucide="bell"></i> Send Notification Alert</h2>
+          <form id="send-notif-form" onsubmit="onSubmitNotification(event)">
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Recipients *</label>
+                <select id="notif-target-type" onchange="toggleNotifTarget()">
+                  <option value="all">All Students</option>
+                  <option value="batch">Specific Batch</option>
+                </select>
+              </div>
+              <div class="form-group" id="notif-batch-group" style="display:none">
+                <label>Batch *</label>
+                <select id="notif-batch"><option value="">-- Select Batch --</option></select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Title *</label>
+              <input type="text" id="notif-title" required placeholder="e.g. Class Slot Changed">
+            </div>
+            <div class="form-group">
+              <label>Message Body *</label>
+              <textarea id="notif-msg" required placeholder="Type notification details here..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary"><i data-lucide="send"></i> Send Notification</button>
+          </form>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Schedule Lecture Modal -->
+<div id="schedule-lecture-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Schedule a Lecture</h2>
+      <button class="btn-close" onclick="closeModal('schedule-lecture-modal')">×</button>
+    </div>
+    <form id="schedule-lecture-form" onsubmit="onSubmitScheduleLecture(event)">
+      <div class="form-group">
+        <label>Batch *</label>
+        <select id="lec-batch" required><option value="">-- Select Batch --</option></select>
+      </div>
+      <div class="form-group">
+        <label>Subject *</label>
+        <select id="lec-course" required><option value="">-- Select Subject --</option></select>
+      </div>
+      <div class="form-group">
+        <label>Lecture Title *</label>
+        <input type="text" id="lec-title" required placeholder="e.g. Java OOP — Polymorphism">
+      </div>
+      <div class="form-group-row">
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" id="lec-date" required>
+        </div>
+        <div class="form-group">
+          <label>Time Slots *</label>
+          <input type="text" id="lec-time" required placeholder="04:00 PM - 06:00 PM">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Duration (minutes)</label>
+        <input type="number" id="lec-duration" value="90" min="15">
+      </div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('schedule-lecture-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Schedule Lecture</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Create Assignment Modal -->
+<div id="create-assignment-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Create Assignment</h2>
+      <button class="btn-close" onclick="closeModal('create-assignment-modal')">×</button>
+    </div>
+    <form id="create-assignment-form" onsubmit="onSubmitAssignment(event)">
+      <div class="form-group-row">
+        <div class="form-group">
+          <label>Batch *</label>
+          <select id="asgn-batch" required><option value="">-- Select Batch --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Subject *</label>
+          <select id="asgn-course" required><option value="">-- Select Subject --</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Assignment Title *</label>
+        <input type="text" id="asgn-title" required placeholder="e.g. Build a Java Calculator App">
+      </div>
+      <div class="form-group">
+        <label>Description / Instructions *</label>
+        <textarea id="asgn-desc" required placeholder="Describe assignment details..."></textarea>
+      </div>
+      <div class="form-group-row">
+        <div class="form-group">
+          <label>Due Date *</label>
+          <input type="date" id="asgn-due" required>
+        </div>
+        <div class="form-group">
+          <label>Max Marks</label>
+          <input type="number" id="asgn-marks" value="100" min="1">
+        </div>
+      </div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('create-assignment-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Assignment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Jitsi Meet Class Session Fullscreen Modal -->
+<div id="jitsi-modal" class="modal-overlay">
+  <div class="modal-content wide" style="height:90vh;display:flex;flex-direction:column;padding:24px">
+    <div class="modal-header" style="margin-bottom:12px">
+      <h2 id="jitsi-title">Educator Class Session (Live)</h2>
+      <button class="btn-close" onclick="closeJitsiClass()">×</button>
+    </div>
+    <div id="jitsi-container" style="flex:1;background:#000;border-radius:12px;overflow:hidden"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="{{ url_for('static', filename='js/faculty.js') }}"></script>
+</body>
+</html>

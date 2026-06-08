@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal | Royal Technosoft LTD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@100..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside id="app-sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-container">
+        <!-- SVG Logo -->
+        <svg viewBox="0 0 160 56" xmlns="http://www.w3.org/2000/svg" style="height:32px">
+          <text x="0" y="40" font-family="'Sora', sans-serif" font-weight="900" font-size="36" fill="#E8B84B" letter-spacing="-2">ROYAL</text>
+          <line x1="130" y1="44" x2="146" y2="8" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+          <line x1="146" y1="8" x2="156" y2="44" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="sidebar-role-badge" style="background:rgba(139,92,246,0.1);color:var(--accent-admin)">Admin Portal</span>
+    </div>
+    
+    <nav class="sidebar-menu">
+      <button class="nav-item active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+      <button class="nav-item" onclick="switchTab('students')"><i data-lucide="graduation-cap"></i><span>Students</span></button>
+      <button class="nav-item" onclick="switchTab('faculty')"><i data-lucide="school"></i><span>Faculty</span></button>
+      <button class="nav-item" onclick="switchTab('batches')"><i data-lucide="users"></i><span>Batches</span></button>
+      <button class="nav-item" onclick="switchTab('courses')"><i data-lucide="book-open"></i><span>Courses</span></button>
+      <button class="nav-item" onclick="switchTab('fees')"><i data-lucide="indian-rupee"></i><span>Fees</span></button>
+      <button class="nav-item" onclick="switchTab('certificates')"><i data-lucide="award"></i><span>Certificates</span></button>
+      <button class="nav-item" onclick="switchTab('notifications')"><i data-lucide="bell"></i><span>Notifications</span></button>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="user-avatar">AD</div>
+        <div class="user-info">
+          <span class="user-name">{{ username }}</span>
+          <span class="user-role">Administrator</span>
+        </div>
+      </div>
+      <a href="/logout" class="btn btn-secondary btn-block" style="text-decoration:none;font-size:12px;margin-top:10px">
+        <i data-lucide="log-out"></i> Logout
+      </a>
+    </div>
+  </aside>
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="main-panel">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="btn-toggle-sidebar" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1 id="page-title" class="header-title">Dashboard</h1>
+      </div>
+    </header>
+
+    <div id="content-area" class="content-scroll-container">
+
+      <!-- 1. DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <div class="welcome-banner">
+          <div>
+            <div class="welcome-name">Admin Dashboard</div>
+            <div class="welcome-sub">Empowering Future Tech Professionals. Oversee student enrollment, batches, and operations.</div>
+          </div>
+          <div class="welcome-emoji">🛡️</div>
+        </div>
+        
+        <div class="stats-grid" id="admin-stats">
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Total Students</span>
+              <span class="stat-value" id="stat-students">0</span>
+              <span class="stat-sub" id="stat-active-students">Active: 0</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-admin)"><i data-lucide="graduation-cap"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Active Batches</span>
+              <span class="stat-value" id="stat-batches">0</span>
+              <span class="stat-sub" id="stat-total-batches">Total: 0</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-admin)"><i data-lucide="users"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Faculty Members</span>
+              <span class="stat-value" id="stat-faculty">0</span>
+              <span class="stat-sub">Active members</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-admin)"><i data-lucide="presentation"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Fees Ledger</span>
+              <span class="stat-value" id="stat-fees">₹0</span>
+              <span class="stat-sub" id="stat-outstanding">Outstanding: ₹0</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-admin)"><i data-lucide="indian-rupee"></i></div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="zap"></i> Quick Actions</h2>
+            <div style="display:flex;gap:12px;flex-direction:column">
+              <button class="btn btn-primary" onclick="switchTab('students');openModal('add-student-modal')"><i data-lucide="user-plus"></i> Enroll Student Profile</button>
+              <button class="btn btn-secondary" onclick="switchTab('batches');openModal('add-batch-modal')"><i data-lucide="plus"></i> Setup New Batch</button>
+              <button class="btn btn-secondary" onclick="switchTab('faculty');openModal('add-faculty-modal')"><i data-lucide="plus"></i> Add Faculty Member</button>
+            </div>
+          </div>
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="info"></i> Pending Inquiries</h2>
+            <div id="dash-inquiries-count" style="font-size:48px;font-weight:800;color:var(--accent-gold);text-align:center;padding:20px">0</div>
+            <div style="text-align:center;color:var(--text-muted);font-size:13px">leads awaiting advisor counselling</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. STUDENTS -->
+      <section id="tab-students" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;gap:12px;margin-bottom:20px">
+            <input type="text" id="student-search" placeholder="Search by name, email..." style="flex:1" oninput="filterStudents()">
+            <button class="btn btn-primary" onclick="openModal('add-student-modal')"><i data-lucide="plus"></i> Add Student</button>
+          </div>
+          <div id="students-grid" class="cert-grid"></div>
+        </div>
+      </section>
+
+      <!-- 3. FACULTY -->
+      <section id="tab-faculty" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3>Faculty Members</h3>
+            <button class="btn btn-primary" onclick="openModal('add-faculty-modal')"><i data-lucide="plus"></i> Add Faculty</button>
+          </div>
+          <div id="faculty-grid" class="cert-grid"></div>
+        </div>
+      </section>
+
+      <!-- 4. BATCHES -->
+      <section id="tab-batches" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3>Batch Registers</h3>
+            <button class="btn btn-primary" onclick="openModal('add-batch-modal')"><i data-lucide="plus"></i> Create Batch</button>
+          </div>
+          <div id="batches-grid" class="cert-grid"></div>
+        </div>
+      </section>
+
+      <!-- 5. COURSES -->
+      <section id="tab-courses" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3>Courses</h3>
+            <button class="btn btn-primary" onclick="openModal('add-course-modal')"><i data-lucide="plus"></i> Add Course</button>
+          </div>
+          <div id="courses-grid" class="cert-grid"></div>
+        </div>
+      </section>
+
+      <!-- 6. FEES -->
+      <section id="tab-fees" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3>Student Fee Invoices</h3>
+            <button class="btn btn-primary" onclick="openModal('record-payment-modal')"><i data-lucide="plus"></i> Record Payment</button>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Course / Batch</th>
+                  <th>Total Due</th>
+                  <th>Paid</th>
+                  <th>Outstanding</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="fees-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. CERTIFICATES -->
+      <section id="tab-certificates" class="tab-pane">
+        <div class="dashboard-row">
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="plus"></i> Issue Certificate Manual</h2>
+            <form id="upload-cert-form" onsubmit="onSubmitUploadCert(event)">
+              <div class="form-group">
+                <label>Student *</label>
+                <select id="cert-student-select" required><option value="">-- Select Student --</option></select>
+              </div>
+              <div class="form-group">
+                <label>Certificate Name *</label>
+                <input type="text" id="cert-name" required placeholder="e.g. Masterclass in Python Programming">
+              </div>
+              <div class="form-group">
+                <label>Issue Date *</label>
+                <input type="date" id="cert-date" required>
+              </div>
+              <button type="submit" class="btn btn-primary"><i data-lucide="upload"></i> Issue Certificate</button>
+            </form>
+          </div>
+          
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="award"></i> Batch Certificate Generator</h2>
+            <form id="generate-certs-form" onsubmit="onSubmitGenerateCerts(event)">
+              <div class="form-group">
+                <label>Batch *</label>
+                <select id="cert-batch-select" required onchange="onSelectBatchForCerts()"><option value="">-- Select Batch --</option></select>
+              </div>
+              <div style="margin-bottom:16px">
+                <div style="font-weight:700;font-size:13px;margin-bottom:8px">Students List *</div>
+                <div id="cert-students-checkboxes" style="max-height:160px;overflow-y:auto;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px">
+                  <span style="color:var(--text-muted)">Select a batch first...</span>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary"><i data-lucide="zap"></i> Auto-Generate Certificates</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. NOTIFICATIONS -->
+      <section id="tab-notifications" class="tab-pane">
+        <div class="card" style="max-width:640px;margin:0 auto">
+          <h2 class="card-title"><i data-lucide="bell"></i> Broadcast Notification alert</h2>
+          <form id="broadcast-notif-form" onsubmit="onSubmitBroadcast(event)">
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Recipients *</label>
+                <select id="notif-target-type" onchange="toggleNotifTarget()">
+                  <option value="all">All Students & Faculty</option>
+                  <option value="batch">Specific Batch Only</option>
+                </select>
+              </div>
+              <div class="form-group" id="notif-batch-group" style="display:none">
+                <label>Batch *</label>
+                <select id="notif-batch"><option value="">-- Select Batch --</option></select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Broadcasting Title *</label>
+              <input type="text" id="notif-title" required placeholder="e.g. Campus Holiday Declaration">
+            </div>
+            <div class="form-group">
+              <label>Message Content *</label>
+              <textarea id="notif-msg" required placeholder="Type broadcasting announcement details here..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary"><i data-lucide="send"></i> Dispatch Broadcast</button>
+          </form>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Add Student Modal -->
+<div id="add-student-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Enroll Student Profile</h2><button class="btn-close" onclick="closeModal('add-student-modal')">×</button></div>
+    <form id="add-student-form" onsubmit="onSubmitAddStudent(event)">
+      <div class="form-group-row">
+        <div class="form-group"><label>First Name *</label><input type="text" id="stud-first" required placeholder="Aman"></div>
+        <div class="form-group"><label>Last Name *</label><input type="text" id="stud-last" required placeholder="Kumar"></div>
+      </div>
+      <div class="form-group"><label>Email Address *</label><input type="email" id="stud-email" required placeholder="aman.kumar@gmail.com"></div>
+      <div class="form-group"><label>Mobile Number *</label><input type="tel" id="stud-phone" required placeholder="9876543210" pattern="[0-9]{10}"></div>
+      <div class="form-group"><label>City</label><input type="text" id="stud-city" placeholder="Mumbai"></div>
+      <div class="form-group"><label>Password (For Login) *</label><input type="text" id="stud-pw" required value="student123"></div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('add-student-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Enroll Student</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Faculty Modal -->
+<div id="add-faculty-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Add Faculty Profile</h2><button class="btn-close" onclick="closeModal('add-faculty-modal')">×</button></div>
+    <form id="add-faculty-form" onsubmit="onSubmitAddFaculty(event)">
+      <div class="form-group-row">
+        <div class="form-group"><label>First Name *</label><input type="text" id="fac-first" required placeholder="Amit"></div>
+        <div class="form-group"><label>Last Name *</label><input type="text" id="fac-last" required placeholder="Kumar"></div>
+      </div>
+      <div class="form-group"><label>Email Address *</label><input type="email" id="fac-email" required placeholder="amit.kumar@institute.com"></div>
+      <div class="form-group"><label>Mobile Number *</label><input type="tel" id="fac-phone" required placeholder="9911223344" pattern="[0-9]{10}"></div>
+      <div class="form-group-row">
+        <div class="form-group"><label>Specialization</label><input type="text" id="fac-spec" placeholder="Java & Python"></div>
+        <div class="form-group"><label>Qualification</label><input type="text" id="fac-qual" placeholder="M.Tech CS"></div>
+      </div>
+      <div class="form-group"><label>Password *</label><input type="text" id="fac-pw" required value="faculty123"></div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('add-faculty-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Faculty</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Batch Modal -->
+<div id="add-batch-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Setup New Batch</h2><button class="btn-close" onclick="closeModal('add-batch-modal')">×</button></div>
+    <form id="add-batch-form" onsubmit="onSubmitAddBatch(event)">
+      <div class="form-group"><label>Batch Name *</label><input type="text" id="bat-name" required placeholder="Batch E - Python Night"></div>
+      <div class="form-group-row">
+        <div class="form-group"><label>Max Students</label><input type="number" id="bat-max" value="25" min="1"></div>
+        <div class="form-group"><label>Time Slot *</label><input type="text" id="bat-time" required placeholder="06:00 PM - 08:00 PM"></div>
+      </div>
+      <div class="form-group-row">
+        <div class="form-group"><label>Start Date *</label><input type="date" id="bat-start" required></div>
+        <div class="form-group"><label>End Date *</label><input type="date" id="bat-end" required></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px">Lecture Days *</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label><input type="checkbox" name="bat-days" value="Monday"> Mon</label>
+          <label><input type="checkbox" name="bat-days" value="Tuesday"> Tue</label>
+          <label><input type="checkbox" name="bat-days" value="Wednesday"> Wed</label>
+          <label><input type="checkbox" name="bat-days" value="Thursday"> Thu</label>
+          <label><input type="checkbox" name="bat-days" value="Friday"> Fri</label>
+          <label><input type="checkbox" name="bat-days" value="Saturday"> Sat</label>
+        </div>
+      </div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('add-batch-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Batch</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Course Modal -->
+<div id="add-course-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Create New Course</h2><button class="btn-close" onclick="closeModal('add-course-modal')">×</button></div>
+    <form id="add-course-form" onsubmit="onSubmitAddCourse(event)">
+      <div class="form-group"><label>Course Title *</label><input type="text" id="crs-name" required placeholder="C++ Programming"></div>
+      <div class="form-group-row">
+        <div class="form-group"><label>Course Code *</label><input type="text" id="crs-code" required placeholder="CPP101"></div>
+        <div class="form-group"><label>Duration (weeks)</label><input type="number" id="crs-weeks" value="8" min="1"></div>
+      </div>
+      <div class="form-group"><label>Course Fee (INR) *</label><input type="number" id="crs-fee" required value="5000" min="0"></div>
+      <div class="form-group"><label>Description</label><textarea id="crs-desc" placeholder="Brief outline of syllabus..."></textarea></div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('add-course-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Course</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Record Payment Modal -->
+<div id="record-payment-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Record Invoice Payment</h2><button class="btn-close" onclick="closeModal('record-payment-modal')">×</button></div>
+    <form id="record-payment-form" onsubmit="onSubmitRecordPayment(event)">
+      <div class="form-group"><label>Select Invoice / Student *</label><select id="pay-fee-id" required><option value="">-- Select Outstanding Invoice --</option></select></div>
+      <div class="form-group-row">
+        <div class="form-group"><label>Payment Amount (INR) *</label><input type="number" id="pay-amount" required min="1"></div>
+        <div class="form-group"><label>Payment Mode *</label>
+          <select id="pay-mode" required>
+            <option value="cash">Cash</option>
+            <option value="upi">UPI / Transfer</option>
+            <option value="card">Card</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Reference Number (Optional)</label><input type="text" id="pay-ref" placeholder="UPI transaction ID / Cheque no"></div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('record-payment-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Record Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Assign Student to Batch Modal -->
+<div id="assign-student-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Assign Student to Batch</h2><button class="btn-close" onclick="closeModal('assign-student-modal')">×</button></div>
+    <form id="assign-student-form" onsubmit="onSubmitAssignStudent(event)">
+      <input type="hidden" id="assign-student-id">
+      <div class="form-group"><label>Student Name</label><input type="text" id="assign-student-name-display" readonly style="background:rgba(255,255,255,0.02);border:1px solid var(--border)"></div>
+      <div class="form-group"><label>Select Batch *</label><select id="assign-batch-select" required><option value="">-- Select Batch --</option></select></div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('assign-student-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Assign Batch</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

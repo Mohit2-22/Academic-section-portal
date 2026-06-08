@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inquiry | Royal Technosoft LTD</title>
+  <meta name="description" content="Submit inquiry form for Royal Technosoft LTD">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@100..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(232, 184, 75, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 50%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+    }
+    
+    .inquiry-card {
+      width: 100%;
+      max-width: 600px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(232, 184, 75, 0.2);
+      border-radius: 24px;
+      padding: 40px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    }
+    
+    .wizard-progress-bar {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .wizard-progress-fill {
+      height: 100%;
+      background: var(--accent-gold);
+      width: 33.33%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .wizard-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .wizard-step-indicator {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .wizard-step-indicator.active {
+      color: var(--accent-gold);
+    }
+    .wizard-pane {
+      display: none;
+    }
+    .wizard-pane.active {
+      display: block;
+      animation: slideIn 0.3s ease forwards;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .wizard-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 24px;
+    }
+    .success-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 0;
+      animation: fadeIn 0.4s ease forwards;
+    }
+    .success-checkmark {
+      font-size: 64px;
+      color: var(--accent-faculty);
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="inquiry-card">
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px;text-align:center">
+      <!-- SVG Logo -->
+      <svg viewBox="0 0 160 56" xmlns="http://www.w3.org/2000/svg" style="height:44px;margin-bottom:12px">
+        <text x="0" y="40" font-family="'Sora', sans-serif" font-weight="900" font-size="36" fill="#E8B84B" letter-spacing="-2">ROYAL</text>
+        <line x1="130" y1="44" x2="146" y2="8" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+        <line x1="146" y1="8" x2="156" y2="44" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <h2 style="font-size:20px;font-weight:800;color:white">Admission Inquiry</h2>
+      <p style="font-size:13px;color:var(--text-muted);margin-top:4px">Empowering Future Tech Professionals</p>
+    </div>
+
+    <div class="wizard-progress-bar" id="wizard-progress-container">
+      <div class="wizard-progress-fill" id="wizard-progress"></div>
+    </div>
+    <div class="wizard-steps" id="wizard-steps-container">
+      <span class="wizard-step-indicator active" id="indicator-1">Step 1: Personal</span>
+      <span class="wizard-step-indicator" id="indicator-2">Step 2: Parents</span>
+      <span class="wizard-step-indicator" id="indicator-3">Step 3: Reference</span>
+    </div>
+
+    <form id="inquiry-form" onsubmit="return false;">
+      <!-- Step 1 -->
+      <div class="wizard-pane active" id="pane-1">
+        <div class="form-group-3">
+          <div class="form-group">
+            <label>First Name *</label>
+            <input type="text" id="inq-first" required placeholder="Rahul">
+          </div>
+          <div class="form-group">
+            <label>Middle Name</label>
+            <input type="text" id="inq-middle" placeholder="Kumar">
+          </div>
+          <div class="form-group">
+            <label>Last Name *</label>
+            <input type="text" id="inq-last" required placeholder="Sharma">
+          </div>
+        </div>
+        <div class="form-group-row">
+          <div class="form-group">
+            <label>City *</label>
+            <input type="text" id="inq-city" required placeholder="Mumbai">
+          </div>
+          <div class="form-group">
+            <label>Mobile Number (+91 Prefix) *</label>
+            <input type="tel" id="inq-mobile" required placeholder="10-digit mobile" pattern="[0-9]{10}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="wizard-pane" id="pane-2">
+        <div class="form-group-row">
+          <div class="form-group">
+            <label>Father's Occupation *</label>
+            <input type="text" id="inq-father-occ" required placeholder="Business">
+          </div>
+          <div class="form-group">
+            <label>Father's Mobile *</label>
+            <input type="tel" id="inq-father-mobile" required placeholder="10-digit mobile" pattern="[0-9]{10}">
+          </div>
+        </div>
+        <div class="form-group-row">
+          <div class="form-group">
+            <label>Mother's Occupation *</label>
+            <input type="text" id="inq-mother-occ" required placeholder="Homemaker">
+          </div>
+          <div class="form-group">
+            <label>Mother's Mobile *</label>
+            <input type="tel" id="inq-mother-mobile" required placeholder="10-digit mobile" pattern="[0-9]{10}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="wizard-pane" id="pane-3">
+        <div class="form-group">
+          <label>How did you hear about us? *</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <label style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+              <input type="radio" name="ref-source" value="newspaper" required onclick="onSelectRefSource('newspaper')"> Newspaper
+            </label>
+            <label style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+              <input type="radio" name="ref-source" value="social_media" onclick="onSelectRefSource('social_media')"> Social Media Ads
+            </label>
+            <label style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+              <input type="radio" name="ref-source" value="friends_relatives" onclick="onSelectRefSource('friends_relatives')"> Friends / Relatives
+            </label>
+            <label style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+              <input type="radio" name="ref-source" value="other" onclick="onSelectRefSource('other')"> Other
+            </label>
+          </div>
+        </div>
+        <div class="form-group" id="inq-other-group" style="display:none">
+          <label>Please specify reference *</label>
+          <input type="text" id="inq-other" placeholder="How did you hear about us?">
+        </div>
+        <div class="form-group">
+          <label>Course of Interest</label>
+          <input type="text" id="inq-course" placeholder="e.g. Python Pro">
+        </div>
+      </div>
+
+      <!-- Wizard Buttons -->
+      <div class="wizard-buttons" id="wizard-buttons-container">
+        <button type="button" class="btn btn-secondary" id="inq-btn-back" onclick="wizardBack()" style="visibility:hidden">Back</button>
+        <button type="button" class="btn btn-primary" id="inq-btn-next" onclick="wizardNext()">Next</button>
+      </div>
+    </form>
+
+    <!-- Success Screen -->
+    <div class="success-screen" id="inq-success-screen">
+      <span class="success-checkmark">✓</span>
+      <h3 style="font-size:24px;font-weight:800;color:white;margin-bottom:8px">Thank you!</h3>
+      <p style="color:var(--text-muted);margin-bottom:24px">Your inquiry has been submitted. We'll contact you soon 🎉</p>
+      <a href="/" class="btn btn-primary" style="text-decoration:none">Back to Login</a>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    let currentStep = 1;
+    
+    window.wizardNext = function() {
+      const currentPane = document.getElementById(`pane-${currentStep}`);
+      const inputs = currentPane.querySelectorAll('input, select');
+      let valid = true;
+      inputs.forEach(input => {
+        if (!input.checkValidity()) {
+          input.reportValidity();
+          valid = false;
+        }
+      });
+
+      if (!valid) return;
+
+      if (currentStep < 3) {
+        document.getElementById(`pane-${currentStep}`).classList.remove('active');
+        document.getElementById(`indicator-${currentStep}`).classList.remove('active');
+        currentStep++;
+        document.getElementById(`pane-${currentStep}`).classList.add('active');
+        document.getElementById(`indicator-${currentStep}`).classList.add('active');
+        document.getElementById('wizard-progress').style.width = (currentStep * 33.33) + '%';
+        
+        document.getElementById('inq-btn-back').style.visibility = 'visible';
+        if (currentStep === 3) {
+          document.getElementById('inq-btn-next').textContent = 'Submit Inquiry';
+        }
+      } else {
+        submitInquiryForm();
+      }
+    };
+
+    window.wizardBack = function() {
+      if (currentStep > 1) {
+        document.getElementById(`pane-${currentStep}`).classList.remove('active');
+        document.getElementById(`indicator-${currentStep}`).classList.remove('active');
+        currentStep--;
+        document.getElementById(`pane-${currentStep}`).classList.add('active');
+        document.getElementById(`indicator-${currentStep}`).classList.add('active');
+        document.getElementById('wizard-progress').style.width = (currentStep * 33.33) + '%';
+
+        document.getElementById('inq-btn-next').textContent = 'Next';
+        if (currentStep === 1) {
+          document.getElementById('inq-btn-back').style.visibility = 'hidden';
+        }
+      }
+    };
+
+    window.onSelectRefSource = function(value) {
+      const otherGroup = document.getElementById('inq-other-group');
+      const otherInput = document.getElementById('inq-other');
+      if (value === 'other') {
+        otherGroup.style.display = 'block';
+        otherInput.required = true;
+      } else {
+        otherGroup.style.display = 'none';
+        otherInput.required = false;
+      }
+    };
+
+    async function submitInquiryForm() {
+      const refSourceEl = document.querySelector('input[name="ref-source"]:checked');
+      const refSource = refSourceEl ? refSourceEl.value : '';
+      const payload = {
+        first_name: document.getElementById('inq-first').value,
+        middle_name: document.getElementById('inq-middle').value,
+        last_name: document.getElementById('inq-last').value,
+        city: document.getElementById('inq-city').value,
+        mobile: document.getElementById('inq-mobile').value,
+        father_occupation: document.getElementById('inq-father-occ').value,
+        father_mobile: document.getElementById('inq-father-mobile').value,
+        mother_occupation: document.getElementById('inq-mother-occ').value,
+        mother_mobile: document.getElementById('inq-mother-mobile').value,
+        reference_source: refSource,
+        reference_other: document.getElementById('inq-other').value,
+        course_interest: document.getElementById('inq-course').value,
+      };
+
+      try {
+        const resp = await fetch('/api/student/inquiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Submission failed');
+        
+        // Hide form and progression bars, show success
+        document.getElementById('inquiry-form').style.display = 'none';
+        document.getElementById('wizard-progress-container').style.display = 'none';
+        document.getElementById('wizard-steps-container').style.display = 'none';
+        document.getElementById('inq-success-screen').style.display = 'flex';
+        showToast('Inquiry submitted successfully!', 'success');
+      } catch(err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function showToast(msg, type='success') {
+      const container = document.getElementById('toast-container');
+      const icons = { success: 'check-circle', error: 'x-circle', warning: 'alert-triangle' };
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `<i data-lucide="${icons[type] || 'info'}"></i>\xa0\xa0` + msg;
+      container.appendChild(toast);
+      lucide.createIcons();
+      setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+    }
+  </script>
+</body>
+</html>

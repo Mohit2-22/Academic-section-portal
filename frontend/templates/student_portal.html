@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Portal | Royal Technosoft LTD</title>
+  <meta name="description" content="Student learning portal for Royal Technosoft LTD">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@100..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Monaco Editor CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+  <script>window.PROFILE_ID = "{{ profile_id }}";</script>
+  <style>
+    /* Inquiry Wizard Styles */
+    .wizard-progress-bar {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .wizard-progress-fill {
+      height: 100%;
+      background: var(--accent-gold);
+      width: 33.33%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .wizard-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .wizard-step-indicator {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .wizard-step-indicator.active {
+      color: var(--accent-gold);
+    }
+    .wizard-pane {
+      display: none;
+    }
+    .wizard-pane.active {
+      display: block;
+      animation: slideIn 0.3s ease forwards;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .wizard-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 24px;
+    }
+    .success-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 20px;
+      animation: fadeIn 0.4s ease forwards;
+    }
+    .success-checkmark {
+      font-size: 64px;
+      color: var(--accent-faculty);
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside id="app-sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-container">
+        <!-- SVG Logo -->
+        <svg viewBox="0 0 160 56" xmlns="http://www.w3.org/2000/svg" style="height:32px">
+          <text x="0" y="40" font-family="'Sora', sans-serif" font-weight="900" font-size="36" fill="#E8B84B" letter-spacing="-2">ROYAL</text>
+          <line x1="130" y1="44" x2="146" y2="8" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+          <line x1="146" y1="8" x2="156" y2="44" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="sidebar-role-badge" style="background:rgba(99,102,241,0.1);color:var(--accent-student)">Student Portal</span>
+    </div>
+    
+    <nav class="sidebar-menu">
+      <button class="nav-item active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+      <button class="nav-item" onclick="switchTab('inquiry')"><i data-lucide="file-text"></i><span>Inquiry Form</span></button>
+      <button class="nav-item" onclick="switchTab('timetable')"><i data-lucide="calendar-days"></i><span>Timetable</span></button>
+      <button class="nav-item" onclick="switchTab('notifications')"><i data-lucide="bell"></i><span>Notifications</span></button>
+      <button class="nav-item" onclick="switchTab('certificates')"><i data-lucide="award"></i><span>Certificates</span></button>
+      <button class="nav-item" onclick="switchTab('online-class')"><i data-lucide="video"></i><span>Online Class</span></button>
+      <button class="nav-item" onclick="switchTab('materials')"><i data-lucide="download"></i><span>Materials</span></button>
+      <button class="nav-item" onclick="switchTab('videos')"><i data-lucide="play-circle"></i><span>Video Tutorials</span></button>
+      <button class="nav-item" onclick="switchTab('ide')"><i data-lucide="code-2"></i><span>Practice IDE</span></button>
+      <button class="nav-item" onclick="switchTab('feedback')"><i data-lucide="star"></i><span>Faculty Feedback</span></button>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="user-avatar" id="sidebar-avatar">ST</div>
+        <div class="user-info">
+          <span class="user-name" id="sidebar-name">Student</span>
+          <span class="user-role">Enrolled Profile</span>
+        </div>
+      </div>
+      <a href="/logout" class="btn btn-secondary btn-block" style="text-decoration:none;font-size:12px;margin-top:10px">
+        <i data-lucide="log-out"></i> Logout
+      </a>
+    </div>
+  </aside>
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="main-panel">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="btn-toggle-sidebar" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1 id="page-title" class="header-title">Dashboard</h1>
+      </div>
+      <div class="header-right">
+        <!-- Upcoming class countdown timer -->
+        <div id="upcoming-countdown" style="font-size:13px;color:var(--accent-gold);font-weight:600;display:none">
+          <span id="countdown-label">Next class in: </span><span id="countdown-timer">00:00:00</span>
+        </div>
+        <button class="icon-button" onclick="switchTab('notifications')" id="notif-bell">
+          <i data-lucide="bell"></i>
+          <span class="notification-badge" id="notif-badge" style="display:none"></span>
+        </button>
+      </div>
+    </header>
+
+    <div id="content-area" class="content-scroll-container">
+
+      <!-- 1. DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <div class="welcome-banner">
+          <div>
+            <div class="welcome-name" id="welcome-name">Welcome back!</div>
+            <div class="welcome-sub">Empowering Future Tech Professionals. Check your dashboard for schedules, files, and practice.</div>
+          </div>
+          <div class="welcome-emoji">🎓</div>
+        </div>
+        
+        <div class="stats-grid" id="profile-stats">
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Enrolled Batch</span>
+              <span class="stat-value-sm" id="dash-batch">—</span>
+              <span class="stat-sub" id="dash-status">Status: Active</span>
+            </div>
+            <div class="stat-icon-wrapper"><i data-lucide="users"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">City</span>
+              <span class="stat-value-sm" id="dash-city">—</span>
+              <span class="stat-sub">Location</span>
+            </div>
+            <div class="stat-icon-wrapper"><i data-lucide="map-pin"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Fees Paid</span>
+              <span class="stat-value-sm" id="dash-fee-paid">₹0</span>
+              <span class="stat-sub">Paid Ledger</span>
+            </div>
+            <div class="stat-icon-wrapper"><i data-lucide="check-circle-2"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Outstanding Fee</span>
+              <span class="stat-value-sm" id="dash-fee-due">₹0</span>
+              <span class="stat-sub" id="dash-fee-due-date">Due: —</span>
+            </div>
+            <div class="stat-icon-wrapper"><i data-lucide="alert-circle"></i></div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="calendar"></i> Today's Schedule</h2>
+            <div id="dash-classes" class="timetable-grid">
+              <div class="loading-spinner"><div class="spinner"></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="bell"></i> Recent Notifications</h2>
+            <div id="dash-notifs" class="notif-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. INQUIRY FORM (3-Step Wizard) -->
+      <section id="tab-inquiry" class="tab-pane">
+        <div class="card" style="max-width:640px;margin:0 auto">
+          <h2 class="card-title"><i data-lucide="file-text"></i> Inquiry Request Wizard</h2>
+          
+          <div class="wizard-progress-bar">
+            <div class="wizard-progress-fill" id="wizard-progress"></div>
+          </div>
+          <div class="wizard-steps">
+            <span class="wizard-step-indicator active" id="indicator-1">Step 1: Personal</span>
+            <span class="wizard-step-indicator" id="indicator-2">Step 2: Parents</span>
+            <span class="wizard-step-indicator" id="indicator-3">Step 3: Reference</span>
+          </div>
+
+          <form id="inquiry-form" onsubmit="return false;">
+            <!-- Step 1 -->
+            <div class="wizard-pane active" id="pane-1">
+              <div class="form-group-3">
+                <div class="form-group">
+                  <label>First Name *</label>
+                  <input type="text" id="inq-first" required placeholder="Aman">
+                </div>
+                <div class="form-group">
+                  <label>Middle Name</label>
+                  <input type="text" id="inq-middle" placeholder="Kumar">
+                </div>
+                <div class="form-group">
+                  <label>Last Name *</label>
+                  <input type="text" id="inq-last" required placeholder="Gupta">
+                </div>
+              </div>
+              <div class="form-group-row">
+                <div class="form-group">
+                  <label>City *</label>
+                  <input type="text" id="inq-city" required placeholder="Mumbai">
+                </div>
+                <div class="form-group">
+                  <label>Mobile Number (+91 Prefix) *</label>
+                  <input type="tel" id="inq-mobile" required placeholder="10-digit mobile" pattern="[0-9]{10}">
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="wizard-pane" id="pane-2">
+              <div class="form-group-row">
+                <div class="form-group">
+                  <label>Father's Occupation *</label>
+                  <input type="text" id="inq-father-occ" required placeholder="Business">
+                </div>
+                <div class="form-group">
+                  <label>Father's Mobile *</label>
+                  <input type="tel" id="inq-father-mobile" required placeholder="10-digit mobile" pattern="[0-9]{10}">
+                </div>
+              </div>
+              <div class="form-group-row">
+                <div class="form-group">
+                  <label>Mother's Occupation *</label>
+                  <input type="text" id="inq-mother-occ" required placeholder="Homemaker">
+                </div>
+                <div class="form-group">
+                  <label>Mother's Mobile *</label>
+                  <input type="tel" id="inq-mother-mobile" required placeholder="10-digit mobile" pattern="[0-9]{10}">
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="wizard-pane" id="pane-3">
+              <div class="form-group">
+                <label>How did you hear about us? *</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+                  <label style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+                    <input type="radio" name="ref-source" value="newspaper" required onclick="onSelectRefSource('newspaper')"> Newspaper
+                  </label>
+                  <label style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+                    <input type="radio" name="ref-source" value="social_media" onclick="onSelectRefSource('social_media')"> Social Media Ads
+                  </label>
+                  <label style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+                    <input type="radio" name="ref-source" value="friends_relatives" onclick="onSelectRefSource('friends_relatives')"> Friends / Relatives
+                  </label>
+                  <label style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+                    <input type="radio" name="ref-source" value="other" onclick="onSelectRefSource('other')"> Other
+                  </label>
+                </div>
+              </div>
+              <div class="form-group" id="inq-other-group" style="display:none">
+                <label>Please specify other reference *</label>
+                <input type="text" id="inq-other" placeholder="e.g. Website banner">
+              </div>
+              <div class="form-group">
+                <label>Course Interest</label>
+                <input type="text" id="inq-course" placeholder="e.g. Java Programming">
+              </div>
+            </div>
+
+            <!-- Wizard buttons -->
+            <div class="wizard-buttons">
+              <button type="button" class="btn btn-secondary" id="inq-btn-back" onclick="wizardBack()" style="visibility:hidden">Back</button>
+              <button type="button" class="btn btn-primary" id="inq-btn-next" onclick="wizardNext()">Next</button>
+            </div>
+          </form>
+
+          <!-- Success Screen -->
+          <div class="success-screen" id="inq-success-screen">
+            <span class="success-checkmark">✓</span>
+            <h3>Thank you!</h3>
+            <p style="color:var(--text-muted);margin:8px 0 20px 0">We have successfully received your inquiry. An admission advisor will contact you soon 🎉</p>
+            <button class="btn btn-primary" onclick="resetWizard()">New Inquiry</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. TIMETABLE -->
+      <section id="tab-timetable" class="tab-pane">
+        <div id="timetable-list" class="timetable-grid">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- 4. NOTIFICATIONS -->
+      <section id="tab-notifications" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-secondary" onclick="filterNotifs('all')">All</button>
+              <button class="btn btn-secondary" onclick="filterNotifs('unread')">Unread</button>
+            </div>
+            <button class="btn btn-primary" onclick="markAllRead()"><i data-lucide="check"></i> Mark all as read</button>
+          </div>
+          <div id="notifications-list" class="notif-list">
+            <div class="loading-spinner"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. CERTIFICATES -->
+      <section id="tab-certificates" class="tab-pane">
+        <div id="certificates-grid" class="cert-grid">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- 6. ONLINE CLASS -->
+      <section id="tab-online-class" class="tab-pane">
+        <div id="online-class-list" class="timetable-grid">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- 7. MATERIALS -->
+      <section id="tab-materials" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;gap:12px;margin-bottom:20px">
+            <input type="text" id="material-search" placeholder="Search materials..." style="flex:1">
+          </div>
+          <div id="materials-grid" class="cert-grid">
+            <div class="loading-spinner"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. VIDEO TUTORIALS -->
+      <section id="tab-videos" class="tab-pane">
+        <div id="videos-grid" class="videos-grid">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- 9. IDE -->
+      <section id="tab-ide" class="tab-pane">
+        <div class="ide-container">
+          <div class="ide-toolbar">
+            <select class="ide-lang-select" id="ide-lang" onchange="changeLanguage()">
+              <option value="python">Python 3</option>
+              <option value="javascript">JavaScript</option>
+              <option value="java">Java</option>
+              <option value="cpp">C++</option>
+              <option value="sql">SQL</option>
+            </select>
+            <button class="ide-run-btn" onclick="runCode()" id="run-btn"><i data-lucide="play"></i> Run Code</button>
+            <button class="ide-clear-btn" onclick="clearOutput()"><i data-lucide="trash-2"></i> Clear</button>
+            <span class="ide-status" id="ide-status">Ready</span>
+          </div>
+          
+          <div style="display:flex;flex:1;min-height:350px">
+            <div class="ide-editor-wrapper" style="flex:1">
+              <div id="ide-editor"></div>
+            </div>
+            <!-- SQL Side Panel -->
+            <div id="sql-schema-panel" style="width:240px;background:rgba(255,255,255,0.02);border-left:1px solid var(--border);padding:16px;display:none;font-size:12px;overflow-y:auto">
+              <h4 style="margin-bottom:10px;color:var(--accent-gold)">Sample Database Schema</h4>
+              <p style="color:var(--text-muted);margin-bottom:8px">Tables available for SQL practice:</p>
+              <strong style="display:block;margin-top:6px">students</strong>
+              <span style="color:var(--text-muted)">id, name, email, city</span>
+              <strong style="display:block;margin-top:6px">courses</strong>
+              <span style="color:var(--text-muted)">id, name, code, fee</span>
+            </div>
+          </div>
+
+          <div class="ide-output-panel">
+            <div class="ide-output-label">Output</div>
+            <div class="ide-output-text" id="ide-output">// Write your code and click Run...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10. FEEDBACK -->
+      <section id="tab-feedback" class="tab-pane">
+        <div id="feedback-prompt" class="card" style="display:none;border-color:var(--accent-gold);background:rgba(232,184,75,0.05)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:32px">📝</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:var(--accent-gold)">Weekly Feedback Due</div>
+              <div style="font-size:13px;color:var(--text-muted)">Help us improve! Rate your faculty topic explanation, punctuality, and knowledge.</div>
+            </div>
+          </div>
+        </div>
+        <div id="feedback-form-container"></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Video Player Modal -->
+<div id="video-modal" class="modal-overlay">
+  <div class="modal-content wide">
+    <div class="modal-header">
+      <h2 id="video-modal-title">Video Tutorial</h2>
+      <button class="btn-close" onclick="closeModal('video-modal')">×</button>
+    </div>
+    <video id="video-player" style="width:100%;aspect-ratio:1.777;border-radius:12px;outline:none" controls></video>
+    <p id="video-modal-desc" style="font-size:13px;color:var(--text-muted);margin-top:12px"></p>
+  </div>
+</div>
+
+<!-- Jitsi Meet Room Fullscreen Modal -->
+<div id="jitsi-modal" class="modal-overlay">
+  <div class="modal-content wide" style="height:90vh;display:flex;flex-direction:column;padding:24px">
+    <div class="modal-header" style="margin-bottom:12px">
+      <h2 id="jitsi-title">Live Class Session</h2>
+      <button class="btn-close" onclick="closeJitsiClass()">×</button>
+    </div>
+    <div id="jitsi-container" style="flex:1;background:#000;border-radius:12px;overflow:hidden"></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/student.js') }}"></script>
+</body>
+</html>

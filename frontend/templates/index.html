@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Institute Manager</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inject User Role Context from Flask Session -->
+  <script>
+    window.USER_ROLE = "{{ user_role }}";
+  </script>
+</head>
+<body>
+
+  <!-- Main Desktop Layout Wrapper -->
+  <div class="app-layout">
+    
+    <!-- Collapsible Sidebar -->
+    <aside id="app-sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo-badge">TI</div>
+        <span class="logo-text">Training Institute</span>
+      </div>
+      
+      <nav class="sidebar-menu">
+        <button class="nav-item active" data-path="/">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item admin-only" data-path="/students">
+          <i data-lucide="users"></i>
+          <span>Students</span>
+        </button>
+        <button class="nav-item admin-only" data-path="/admissions">
+          <i data-lucide="filter"></i>
+          <span>Admissions</span>
+        </button>
+        <button class="nav-item" data-path="/courses">
+          <i data-lucide="book-open"></i>
+          <span>Courses</span>
+        </button>
+        <button class="nav-item admin-only" data-path="/fees">
+          <i data-lucide="indian-rupee"></i>
+          <span>Fees</span>
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="user-profile" style="margin-bottom: 16px;">
+          <div class="user-avatar" id="sidebar-user-avatar">AD</div>
+          <div class="user-info">
+            <span class="user-name" id="sidebar-user-name">Admin User</span>
+            <span class="user-role" id="sidebar-user-role">Management Portal</span>
+          </div>
+        </div>
+        <a href="/logout" class="btn btn-secondary btn-block" style="text-decoration: none; font-size: 12px; height: 36px; padding: 0 10px;">
+          <i data-lucide="log-out"></i> Logout
+        </a>
+      </div>
+    </aside>
+
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Main Panel Area -->
+    <div class="main-panel">
+      
+      <!-- Top Sticky Navbar -->
+      <header class="app-header">
+        <div class="header-left">
+          <button class="btn-toggle-sidebar" onclick="toggleSidebar()">
+            <i data-lucide="menu"></i>
+          </button>
+          <h1 id="page-title" class="header-title">Dashboard</h1>
+        </div>
+        
+        <div class="header-right">
+          <button class="icon-button notification-btn" aria-label="Notifications">
+            <i data-lucide="bell"></i>
+            <span class="notification-badge"></span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Scrollable Main Content Container -->
+      <div id="content-area" class="content-scroll-container">
+        
+        <!-- 1. ADMIN DASHBOARD TAB -->
+        <section id="tab-dashboard" class="tab-pane active admin-only">
+          <!-- Stats Grid -->
+          <div class="stats-grid">
+            <div class="stat-card blue">
+              <div class="stat-info">
+                <span class="stat-label">Total Students</span>
+                <span id="dash-total-students" class="stat-value">0</span>
+                <span id="dash-active-students" class="stat-sub">Active: 0</span>
+              </div>
+              <div class="stat-icon-wrapper">
+                <i data-lucide="users"></i>
+              </div>
+            </div>
+            
+            <div class="stat-card green">
+              <div class="stat-info">
+                <span class="stat-label">New Admissions</span>
+                <span id="dash-new-admissions" class="stat-value">0</span>
+                <span class="stat-sub">Enrolled Leads</span>
+              </div>
+              <div class="stat-icon-wrapper">
+                <i data-lucide="trending-up"></i>
+              </div>
+            </div>
+            
+            <div class="stat-card orange">
+              <div class="stat-info">
+                <span class="stat-label">Active Courses</span>
+                <span id="dash-active-courses" class="stat-value">0</span>
+                <span id="dash-enrolled-courses" class="stat-sub">0 enrolled</span>
+              </div>
+              <div class="stat-icon-wrapper">
+                <i data-lucide="book-open"></i>
+              </div>
+            </div>
+            
+            <div class="stat-card purple">
+              <div class="stat-info">
+                <span class="stat-label">Fees Collected</span>
+                <span id="dash-fees-collected" class="stat-value">₹0</span>
+                <span class="stat-sub">Total payments</span>
+              </div>
+              <div class="stat-icon-wrapper">
+                <i data-lucide="dollar-sign"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions & Recent Activity (Side by side on desktop) -->
+          <div class="dashboard-row">
+            
+            <!-- Quick Actions -->
+            <div class="card action-card">
+              <h2 class="card-title">Quick Actions</h2>
+              <div class="action-buttons-group">
+                <button onclick="openModal('add-student-modal')" class="btn btn-primary">
+                  <i data-lucide="user-plus"></i> Add New Student
+                </button>
+                <button onclick="openModal('record-payment-modal')" class="btn btn-success">
+                  <i data-lucide="credit-card"></i> Record Payment
+                </button>
+                <button onclick="openModal('create-course-modal')" class="btn btn-purple">
+                  <i data-lucide="plus-circle"></i> Create Course
+                </button>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card recent-activity-card">
+              <h2 class="card-title">Recent Activity</h2>
+              <div id="recent-activities-list" class="activity-timeline">
+                <div class="timeline-item">
+                  <div class="timeline-dot blue"></div>
+                  <div class="timeline-content">
+                    <p class="activity-text">Aman Kumar enrolled in Java Basics</p>
+                    <span class="activity-time">Today at 10:30 AM</span>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-dot green"></div>
+                  <div class="timeline-content">
+                    <p class="activity-text">Payment received from Priya Shah</p>
+                    <span class="activity-time">Today at 09:15 AM</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Pending Actions -->
+          <div class="card alerts-card">
+            <h2 class="card-title">Pending Alerts & Focus Items</h2>
+            <div class="alerts-row">
+              <div class="alert-box danger">
+                <div class="alert-info">
+                  <p class="alert-msg">5 Overdue Fees</p>
+                  <span class="alert-sub">Total outstanding: ₹15,000</span>
+                </div>
+                <button class="alert-btn" onclick="switchTab('/fees')">View Outstanding</button>
+              </div>
+              
+              <div class="alert-box warning">
+                <div class="alert-info">
+                  <p class="alert-msg">12 Leads in Inquiry Stage</p>
+                  <span class="alert-sub">Follow up calls needed</span>
+                </div>
+                <button class="alert-btn" onclick="switchTab('/admissions')">Follow Up</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 2. STUDENT PORTAL DASHBOARD TAB -->
+        <section id="tab-student-dashboard" class="tab-pane student-only">
+          
+          <div class="welcome-box mb-4">
+            <div class="welcome-text-group">
+              <h2 class="welcome-title">Welcome back, <span id="student-portal-name">Student</span>!</h2>
+              <p class="welcome-subtitle">Aapka portal active hai. Apne syllabus checkmarks, timetables, and performance reports monitor karein.</p>
+            </div>
+            <div class="welcome-avatar">🎓</div>
+          </div>
+
+          <!-- Student Core Metrics -->
+          <div class="stats-grid">
+            <div class="stat-card blue">
+              <div class="stat-info">
+                <span class="stat-label">Enrolled Course</span>
+                <span id="stud-course-name" class="stat-value-sm">Java Basics</span>
+                <span id="stud-course-instructor" class="stat-sub">Instructor: Dr. Amit</span>
+              </div>
+              <div class="stat-icon-wrapper">
+                <i data-lucide="book-open"></i>
+              </div>
+            </div>
+            
+            <div class="stat-card green">
+              <div class="stat-info">
+                <span class="stat-label">Course Duration</span>
+                <span id="stud-course-duration" class="stat-value-sm">8 Weeks</span>
+                <span id="stud-course-start" class="stat-sub">Start: Jan 15, 2025</span>
+              </div>
+              <div class="stat-icon-wrapper">
+                <i data-lucide="calendar"></i>
+              </div>
+            </div>
+            
+            <div class="stat-card purple">
+              <div class="stat-info">
+                <span class="stat-label">Total Fee Paid</span>
+                <span id="stud-fee-paid" class="stat-value-sm">₹5,000</span>
+                <span class="stat-sub">Fee status: Paid</span>
+              </div>
+              <div class="stat-icon-wrapper">
+                <i data-lucide="check-circle-2"></i>
+              </div>
+            </div>
+            
+            <div class="stat-card red">
+              <div class="stat-info">
+                <span class="stat-label">Outstanding Fee</span>
+                <span id="stud-fee-pending" class="stat-value-sm">₹0</span>
+                <span id="stud-fee-due" class="stat-sub">Due Date: -</span>
+              </div>
+              <div class="stat-icon-wrapper">
+                <i data-lucide="alert-circle"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Course Details & Fees Billing Card (Row 1) -->
+          <div class="dashboard-row">
+            
+            <div class="card">
+              <h2 class="card-title">Enrolled Course Details</h2>
+              <div class="course-profile-card">
+                <div class="course-prof-header">
+                  <h3 id="stud-card-course-title">Java Programming Masterclass</h3>
+                  <p id="stud-card-course-desc">Core fundamentals, OOP concepts, collections, and file handling in Java.</p>
+                </div>
+                <div class="course-prof-details">
+                  <div class="prof-item">
+                    <strong>Category:</strong> <span>Software Engineering</span>
+                  </div>
+                  <div class="prof-item">
+                    <strong>Schedule:</strong> <span>Mon, Wed, Fri (4:00 PM - 6:00 PM)</span>
+                  </div>
+                  <div class="prof-item">
+                    <strong>Portal Status:</strong> <span class="student-status-badge active" id="stud-portal-status">Active</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Billing & Fee Details -->
+            <div class="card">
+              <h2 class="card-title">My Billing & Tuition Status</h2>
+              <div class="billing-profile-box">
+                <div class="billing-metric-group">
+                  <div class="billing-lbl">Total Billing Amount:</div>
+                  <div class="billing-val" id="stud-bill-total">₹5,000</div>
+                </div>
+                <div class="billing-metric-group">
+                  <div class="billing-lbl">Total Fees Paid:</div>
+                  <div class="billing-val-paid" id="stud-bill-paid">₹5,000</div>
+                </div>
+                <div class="billing-metric-group border-t-sep">
+                  <div class="billing-lbl">Pending Balance:</div>
+                  <div class="billing-val-pending" id="stud-bill-pending">₹0</div>
+                </div>
+                
+                <div class="billing-actions-row" id="stud-payment-action-block">
+                  <!-- Injected if student has pending fees -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Schedule & Notice Board (Row 2) -->
+          <div class="dashboard-row">
+            
+            <!-- Timetable Schedule -->
+            <div class="card">
+              <h2 class="card-title">Weekly Class Timetable</h2>
+              <div id="student-schedule-list" class="timetable-list-container">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Notice Board Card -->
+            <div class="card">
+              <h2 class="card-title">Institute Notice Board</h2>
+              <div id="student-notices-list" class="notices-list-container">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Syllabus Tracker & Academic Grades (Row 3) -->
+          <div class="dashboard-row">
+            
+            <!-- Syllabus Tracker -->
+            <div class="card">
+              <h2 class="card-title">Course Syllabus & Curriculum Status</h2>
+              <div id="student-syllabus-list" class="syllabus-checklist-container">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Academic Grades Scorecard -->
+            <div class="card">
+              <h2 class="card-title">Academic Report Card</h2>
+              <div class="grades-table-wrapper">
+                <table class="grades-table">
+                  <thead>
+                    <tr>
+                      <th>Exam / Assessment</th>
+                      <th>Score</th>
+                      <th>Grade</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="student-grades-list">
+                    <!-- Dynamically populated -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- 3. STUDENTS TAB (Admin Only) -->
+        <section id="tab-students" class="tab-pane admin-only">
+          <div class="search-bar-row">
+            <div class="search-input-container">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="student-search-input" placeholder="Search students by name, email, or course..." class="search-input">
+            </div>
+            <button onclick="openModal('add-student-modal')" class="btn btn-primary">
+              <i data-lucide="plus"></i> Add Student
+            </button>
+          </div>
+          
+          <div id="students-list" class="students-grid-container">
+            <!-- Dynamically populated student cards -->
+          </div>
+        </section>
+
+        <!-- 4. ADMISSIONS TAB (Admin Only) -->
+        <section id="tab-admissions" class="tab-pane admin-only">
+          <div class="action-header-row">
+            <h2 class="tab-section-title">Admissions Pipeline</h2>
+            <button onclick="openModal('add-admission-modal')" class="btn btn-primary">
+              <i data-lucide="plus"></i> New Inquiry Lead
+            </button>
+          </div>
+          
+          <!-- Horizontal Kanban Board for Desktop -->
+          <div id="admissions-kanban" class="kanban-board">
+            
+            <!-- Inquiry Column -->
+            <div class="kanban-column" data-stage="inquiry">
+              <div class="kanban-column-header">
+                <h3>Inquiry</h3>
+                <span class="count-badge" id="count-inquiry">0</span>
+              </div>
+              <div class="kanban-cards-list" id="list-inquiry"></div>
+            </div>
+
+            <!-- Applied Column -->
+            <div class="kanban-column" data-stage="applied">
+              <div class="kanban-column-header">
+                <h3>Applied</h3>
+                <span class="count-badge" id="count-applied">0</span>
+              </div>
+              <div class="kanban-cards-list" id="list-applied"></div>
+            </div>
+
+            <!-- Enrolled Column -->
+            <div class="kanban-column" data-stage="enrolled">
+              <div class="kanban-column-header">
+                <h3>Enrolled</h3>
+                <span class="count-badge" id="count-enrolled">0</span>
+              </div>
+              <div class="kanban-cards-list" id="list-enrolled"></div>
+            </div>
+            
+          </div>
+        </section>
+
+        <!-- 5. COURSES TAB (Shared) -->
+        <section id="tab-courses" class="tab-pane">
+          <div class="action-header-row">
+            <h2 class="tab-section-title">Offered Courses</h2>
+            <button onclick="openModal('create-course-modal')" class="btn btn-primary admin-only">
+              <i data-lucide="plus"></i> Create Course
+            </button>
+          </div>
+          
+          <div id="courses-list" class="courses-grid-container">
+            <!-- Dynamically populated course cards -->
+          </div>
+        </section>
+
+        <!-- 6. FEES TAB (Admin Only) -->
+        <section id="tab-fees" class="tab-pane admin-only">
+          <!-- Fee Stats -->
+          <div class="fee-stats-row">
+            <div class="stat-mini green">
+              <span class="stat-mini-label">Collected</span>
+              <span id="fee-stat-collected" class="stat-mini-value">₹0</span>
+            </div>
+            <div class="stat-mini orange">
+              <span class="stat-mini-label">Pending</span>
+              <span id="fee-stat-pending" class="stat-mini-value">₹0</span>
+            </div>
+            <div class="stat-mini red">
+              <span class="stat-mini-label">Overdue</span>
+              <span id="fee-stat-overdue" class="stat-mini-value">₹0</span>
+            </div>
+          </div>
+
+          <div class="action-header-row">
+            <h2 class="tab-section-title">Fee Ledgers & Records</h2>
+            <button onclick="openModal('record-payment-modal')" class="btn btn-success">
+              <i data-lucide="plus"></i> Record Payment
+            </button>
+          </div>
+
+          <div class="card">
+            <div id="fees-list" class="fees-records-grid">
+              <!-- Dynamically populated fee statement cards -->
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- --- MODALS (Admin & Shared Views) --- -->
+
+  <!-- Add Student Modal -->
+  <div id="add-student-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add New Student</h2>
+        <button onclick="closeModal('add-student-modal')" class="btn-close">&times;</button>
+      </div>
+      <form id="add-student-form">
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="student-first-name">First Name</label>
+            <input type="text" id="student-first-name" required placeholder="Aman">
+          </div>
+          <div class="form-group">
+            <label for="student-last-name">Last Name</label>
+            <input type="text" id="student-last-name" required placeholder="Kumar">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="student-email">Email Address</label>
+          <input type="email" id="student-email" required placeholder="name@example.com">
+        </div>
+        <div class="form-group">
+          <label for="student-phone">Phone Number</label>
+          <input type="tel" id="student-phone" required placeholder="9876543210">
+        </div>
+        <div class="form-group">
+          <label for="student-course-select">Select Course & Enroll</label>
+          <select id="student-course-select">
+            <option value="">-- Select Optional Course --</option>
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="closeModal('add-student-modal')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Record Payment Modal -->
+  <div id="record-payment-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Record Fee Payment</h2>
+        <button onclick="closeModal('record-payment-modal')" class="btn-close">&times;</button>
+      </div>
+      <form id="record-payment-form">
+        <div class="form-group">
+          <label for="payment-fee-select">Select Student Fee Record</label>
+          <select id="payment-fee-select" required>
+            <option value="">-- Choose student fee statement --</option>
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="payment-amount">Payment Amount (₹)</label>
+          <input type="number" id="payment-amount" min="1" step="0.01" required placeholder="Enter amount">
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="closeModal('record-payment-modal')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-success">Record Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Course Modal -->
+  <div id="create-course-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Create New Course</h2>
+        <button onclick="closeModal('create-course-modal')" class="btn-close">&times;</button>
+      </div>
+      <form id="create-course-form">
+        <div class="form-group">
+          <label for="course-name">Course Name</label>
+          <input type="text" id="course-name" required placeholder="Python Pro">
+        </div>
+        <div class="form-group">
+          <label for="course-instructor">Instructor Name</label>
+          <input type="text" id="course-instructor" required placeholder="Dr. Sarah">
+        </div>
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="course-duration">Duration (Weeks)</label>
+            <input type="number" id="course-duration" min="1" required placeholder="8">
+          </div>
+          <div class="form-group">
+            <label for="course-fee">Course Fee (₹)</label>
+            <input type="number" id="course-fee" min="0" step="0.01" required placeholder="5000">
+          </div>
+        </div>
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="course-capacity">Max Students</label>
+            <input type="number" id="course-capacity" min="1" value="30" required>
+          </div>
+          <div class="form-group">
+            <label for="course-start-date">Start Date</label>
+            <input type="date" id="course-start-date" required>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="closeModal('create-course-modal')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-purple">Create Course</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Admission Lead Modal -->
+  <div id="add-admission-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>New Admission Lead</h2>
+        <button onclick="closeModal('add-admission-modal')" class="btn-close">&times;</button>
+      </div>
+      <form id="add-admission-form">
+        <div class="form-group">
+          <label for="admission-student-name">Student Full Name</label>
+          <input type="text" id="admission-student-name" required placeholder="Harsha Verma">
+        </div>
+        <div class="form-group">
+          <label for="admission-course-name">Course Name</label>
+          <input type="text" id="admission-course-name" required placeholder="Python Pro">
+        </div>
+        <div class="form-group">
+          <label for="admission-stage-select">Initial Stage</label>
+          <select id="admission-stage-select">
+            <option value="inquiry">Inquiry</option>
+            <option value="applied">Applied</option>
+            <option value="enrolled">Enrolled</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="closeModal('add-admission-modal')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Lead</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Student Pay Modal (Simulated Online Gateway) -->
+  <div id="student-pay-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Pay Fees Online</h2>
+        <button onclick="closeModal('student-pay-modal')" class="btn-close">&times;</button>
+      </div>
+      <form id="student-pay-form">
+        <input type="hidden" id="student-pay-fee-id">
+        <div class="form-group">
+          <label>Outstanding Amount</label>
+          <div style="font-size: 18px; font-weight: 700; color: var(--danger); margin-bottom: 12px;" id="student-pay-pending-val">₹0.00</div>
+        </div>
+        <div class="form-group">
+          <label for="student-pay-amount">Payment Amount (₹)</label>
+          <input type="number" id="student-pay-amount" min="1" step="0.01" required placeholder="Enter amount to pay">
+        </div>
+        <div class="form-group">
+          <label>Payment Method</label>
+          <select required>
+            <option value="card">Simulated Debit/Credit Card</option>
+            <option value="upi">Simulated UPI Gateway</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="closeModal('student-pay-modal')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Authorize Simulated Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

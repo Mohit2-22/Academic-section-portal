@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Royal Technosoft LTD</title>
+  <meta name="description" content="Login to Royal Technosoft LTD Institute Management System">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@100..800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --font-primary: 'DM Sans', sans-serif;
+      --font-heading: 'Sora', sans-serif;
+      --bg-dark: #0D0D1A;
+      --bg-card: #1E293B;
+      --accent-gold: #E8B84B;
+      --text-primary: #F1F5F9;
+      --text-muted: #94A3B8;
+
+      /* Role Accents (will be overridden dynamically by JS) */
+      --role-accent: #6366F1;
+      --role-accent-rgb: 99, 102, 241;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-primary);
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Split layout */
+    .login-wrapper {
+      display: flex;
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    /* Left panel: 60% */
+    .left-panel {
+      width: 60%;
+      background: linear-gradient(135deg, #1A1A2E 0%, #0D0D1A 100%);
+      padding: 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Left panel background blobs */
+    .left-panel::before {
+      content: "";
+      position: absolute;
+      top: -10%;
+      left: -10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(var(--role-accent-rgb), 0.15) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: background 0.5s ease;
+    }
+
+    .left-panel::after {
+      content: "";
+      position: absolute;
+      bottom: -10%;
+      right: -5%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(232, 184, 75, 0.1) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .left-header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .logo-svg {
+      height: 60px;
+      width: auto;
+    }
+
+    .company-title {
+      font-family: var(--font-heading);
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--accent-gold);
+      letter-spacing: -0.5px;
+    }
+
+    .company-tagline {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 500;
+    }
+
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: rgba(232, 184, 75, 0.25);
+      margin: 30px 0;
+      z-index: 10;
+    }
+
+    .left-body {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      z-index: 10;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .role-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .role-display-title {
+      font-family: var(--font-heading);
+      font-size: 36px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -1px;
+    }
+
+    .role-display-desc {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.5);
+      max-width: 480px;
+      line-height: 1.6;
+    }
+
+    /* Feature Cards grid */
+    .feature-cards-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: rgba(232, 184, 75, 0.04);
+      border: 1px solid rgba(232, 184, 75, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      background: rgba(232, 184, 75, 0.08);
+      border-color: rgba(232, 184, 75, 0.35);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .feature-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(232, 184, 75, 0.1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: var(--accent-gold);
+    }
+
+    .feature-card-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .feature-card-title {
+      font-family: var(--font-heading);
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .feature-card-desc {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.5;
+    }
+
+    .left-footer {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+      font-weight: 500;
+      z-index: 10;
+    }
+
+    /* Right panel: 40% */
+    .right-panel {
+      width: 40%;
+      background: var(--bg-dark);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px;
+      position: relative;
+      overflow-y: auto;
+    }
+
+    .right-panel::before {
+      content: "";
+      position: absolute;
+      top: -10%;
+      right: -10%;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(var(--role-accent-rgb), 0.1) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: background 0.5s ease;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 40px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .login-card-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+    }
+
+    .login-welcome {
+      font-family: var(--font-heading);
+      font-size: 24px;
+      font-weight: 800;
+      color: white;
+    }
+
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(var(--role-accent-rgb), 0.1);
+      border: 1px solid rgba(var(--role-accent-rgb), 0.25);
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--role-accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.5s ease;
+    }
+
+    .role-badge svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Floating Labels Form */
+    .form-group-floating {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .floating-input {
+      width: 100%;
+      height: 52px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 18px 16px 4px 16px;
+      color: white;
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .floating-input:focus {
+      border-color: var(--role-accent);
+      box-shadow: 0 0 0 3px rgba(var(--role-accent-rgb), 0.15);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .floating-label {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      color: var(--text-muted);
+      pointer-events: none;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+
+    .floating-input:focus ~ .floating-label,
+    .floating-input:not(:placeholder-shown) ~ .floating-label {
+      top: 6px;
+      font-size: 10px;
+      color: var(--role-accent);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* Password field with toggle & forgot link */
+    .password-wrapper {
+      position: relative;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .password-toggle:hover {
+      color: white;
+    }
+
+    .forgot-link-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: -8px;
+    }
+
+    .forgot-link {
+      font-size: 12px;
+      color: var(--role-accent);
+      text-decoration: none;
+      font-weight: 600;
+      transition: opacity 0.2s ease;
+    }
+
+    .forgot-link:hover {
+      opacity: 0.8;
+    }
+
+    /* Submit Button */
+    .btn-login {
+      width: 100%;
+      height: 52px;
+      background: linear-gradient(135deg, var(--role-accent) 0%, rgba(var(--role-accent-rgb), 0.8) 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-family: var(--font-heading);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(var(--role-accent-rgb), 0.25);
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(var(--role-accent-rgb), 0.45);
+    }
+
+    .btn-login:active {
+      transform: translateY(0);
+    }
+
+    /* Spinner */
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Error Box Shake */
+    .error-box {
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.2);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #FDA4AF;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: shake 0.4s ease;
+    }
+
+    .error-box svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    /* Quick Role Switcher Buttons */
+    .role-switcher-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .switcher-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .switcher-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .switcher-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .switcher-btn:hover, .switcher-btn.active {
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .switcher-btn.active {
+      background: rgba(var(--role-accent-rgb), 0.15);
+      color: var(--role-accent);
+      border-color: var(--role-accent);
+    }
+
+    .switcher-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Mobile Responsive styling */
+    @media (max-width: 992px) {
+      .left-panel {
+        display: none;
+      }
+      .right-panel {
+        width: 100%;
+        padding: 24px;
+      }
+      .login-card {
+        padding: 30px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <!-- Left panel (60%) -->
+    <div class="left-panel">
+      <div class="left-header">
+        <!-- Recreated inline SVG Logo -->
+        <svg class="logo-svg" viewBox="0 0 160 56" xmlns="http://www.w3.org/2000/svg">
+          <text x="0" y="40" font-family="'Sora', sans-serif" font-weight="900" font-size="36" fill="#E8B84B" letter-spacing="-2">ROYAL</text>
+          <text x="0" y="52" font-family="'DM Sans', sans-serif" font-size="10" fill="#94A3B8" letter-spacing="1.5">TECHNOSOFT LTD</text>
+          <line x1="130" y1="44" x2="146" y2="8" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+          <line x1="146" y1="8" x2="156" y2="44" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+          <line x1="122" y1="32" x2="146" y2="8" stroke="#E8B84B" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+        <span class="company-title">Royal Technosoft LTD</span>
+        <span class="company-tagline">Empowering Future Tech Professionals</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="left-body">
+        <div class="role-title-group">
+          <h1 class="role-display-title" id="left-role-title">Student Portal</h1>
+          <p class="role-display-desc" id="left-role-desc">Welcome to your dashboard. Access class resources, schedules, notifications, certificates, and our online IDE compiler.</p>
+        </div>
+
+        <!-- 3 Feature Cards -->
+        <div class="feature-cards-container" id="feature-cards-container">
+          <!-- Dynamic cards inserted here by JS -->
+        </div>
+      </div>
+
+      <div class="left-footer">
+        © 2025 Royal Technosoft LTD. All rights reserved.
+      </div>
+    </div>
+
+    <!-- Right panel (40%) -->
+    <div class="right-panel">
+      <div class="login-card">
+        <div class="login-card-header">
+          <h2 class="login-welcome">Welcome Back 👋</h2>
+          <div class="role-badge">
+            <i id="badge-icon" data-lucide="graduation-cap"></i>
+            <span id="badge-text">student</span>
+          </div>
+        </div>
+
+        {% if error %}
+        <div class="error-box">
+          <i data-lucide="alert-circle"></i>
+          <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" id="login-form" onsubmit="onSubmitForm(event)">
+          <div class="form-group-floating">
+            <input type="text" id="username" name="username" placeholder=" " required autocomplete="username" class="floating-input">
+            <label for="username" class="floating-label">Username</label>
+          </div>
+
+          <div class="form-group-floating password-wrapper">
+            <input type="password" id="password" name="password" placeholder=" " required autocomplete="current-password" class="floating-input">
+            <label for="password" class="floating-label">Password</label>
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility()">
+              <i id="eye-icon" data-lucide="eye"></i>
+            </button>
+          </div>
+
+          <div class="forgot-link-container">
+            <a href="#" class="forgot-link">Forgot Password?</a>
+          </div>
+
+          <button type="submit" class="btn-login" id="login-btn">
+            <span class="spinner" id="login-spinner"></span>
+            <span id="login-btn-text">Sign in to Student Portal</span>
+          </button>
+        </form>
+
+        <div class="divider" style="margin: 10px 0;"></div>
+
+        <!-- Quick Role Switcher -->
+        <div class="role-switcher-container">
+          <span class="switcher-label">Quick Switch Portal</span>
+          <div class="switcher-buttons">
+            <button type="button" class="switcher-btn" id="btn-student" onclick="selectRole('student')" title="Student Portal">
+              <i data-lucide="graduation-cap"></i>
+            </button>
+            <button type="button" class="switcher-btn" id="btn-faculty" onclick="selectRole('faculty')" title="Faculty Portal">
+              <i data-lucide="presentation"></i>
+            </button>
+            <button type="button" class="switcher-btn" id="btn-admin" onclick="selectRole('admin')" title="Admin Portal">
+              <i data-lucide="shield-check"></i>
+            </button>
+            <button type="button" class="switcher-btn" id="btn-admission_staff" onclick="selectRole('admission_staff')" title="Admission Portal">
+              <i data-lucide="funnel"></i>
+            </button>
+            <button type="button" class="switcher-btn" id="btn-super_admin" onclick="selectRole('super_admin')" title="Super Admin Portal">
+              <i data-lucide="crown"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const portalConfig = {
+      student: {
+        title: 'Student Portal',
+        desc: 'Access your classes, schedules, notifications, certificates, and practice code on the web IDE compiler.',
+        accent: '#6366F1',
+        accentRGB: '99, 102, 241',
+        btnText: 'Sign in to Student Portal',
+        badge: 'student',
+        icon: 'graduation-cap',
+        url: '/login',
+        features: [
+          { icon: 'calendar', title: 'Interactive Timetable', desc: 'Track your weekly schedule and ongoing live lecture slots.' },
+          { icon: 'code', title: 'Code Editor IDE', desc: 'Write and test SQL, Python, Java, or JavaScript on-the-go.' },
+          { icon: 'award', title: 'Digital Certificates', desc: 'Download accredited training certificates in high quality.' }
+        ]
+      },
+      faculty: {
+        title: 'Faculty Portal',
+        desc: 'Organize class lectures, upload learning guides and video tutorials, assign coding tasks, and review grades.',
+        accent: '#10B981',
+        accentRGB: '16, 185, 129',
+        btnText: 'Sign in to Faculty Portal',
+        badge: 'faculty',
+        icon: 'presentation',
+        url: '/faculty',
+        features: [
+          { icon: 'video', title: 'Jitsi Classroom', desc: 'Host interactive lectures with mute controls and screen sharing.' },
+          { icon: 'upload-cloud', title: 'Material Distribution', desc: 'Distribute study books, PDFs, scripts, and video materials.' },
+          { icon: 'clipboard-list', title: 'Assignment Manager', desc: 'Create course tasks, assign dates, and grade student submissions.' }
+        ]
+      },
+      admin: {
+        title: 'Admin Operations',
+        desc: 'Manage overall institute courses, configure schedules and batches, enroll new profiles, and issue digital seals.',
+        accent: '#8B5CF6',
+        accentRGB: '139, 92, 246',
+        btnText: 'Sign in to Admin Portal',
+        badge: 'administrator',
+        icon: 'shield-check',
+        url: '/admin',
+        features: [
+          { icon: 'user-plus', title: 'Account Onboarding', desc: 'Generate system credentials for students and educators.' },
+          { icon: 'layers', title: 'Batch Structuring', desc: 'Setup batch capacity, duration, slot timings, and subjects.' },
+          { icon: 'award', title: 'Auto Certificates', desc: 'Batch-generate and distribute PDFs using templates.' }
+        ]
+      },
+      admission_staff: {
+        title: 'Admission & Sales',
+        desc: 'Track inquiry submissions, coordinate seminar pipelines, evaluate sales metrics, and manage fees databases.',
+        accent: '#F59E0B',
+        accentRGB: '245, 158, 11',
+        btnText: 'Sign in to Admission Portal',
+        badge: 'admissions',
+        icon: 'funnel',
+        url: '/admission',
+        features: [
+          { icon: 'kanban', title: 'Lead Kanban Board', desc: 'Drag-and-drop inquiries across 10 distinct conversion stages.' },
+          { icon: 'bar-chart-3', title: 'Funnel Metrics', desc: 'Visualize conversion rates, source statistics, and lead logs.' },
+          { icon: 'credit-card', title: 'Fees Tracker', desc: 'Monitor pending collections, due dates, and update ledgers.' }
+        ]
+      },
+      super_admin: {
+        title: 'Super Admin Control',
+        desc: 'Access master operational logs, monitor revenues, add administrative workers, and reset security settings.',
+        accent: '#F43F5E',
+        accentRGB: '244, 63, 94',
+        btnText: 'Sign in as Super Admin',
+        badge: 'super admin',
+        icon: 'crown',
+        url: '/superadmin',
+        features: [
+          { icon: 'activity', title: 'System Security Audit', desc: 'Oversee backend logs and verify operations.' },
+          { icon: 'dollar-sign', title: 'Revenue Oversight', desc: 'Track billing, fee collections, and print transaction charts.' },
+          { icon: 'users', title: 'Global Directory', desc: 'Manage access controls, activate/deactivate, and reset passwords.' }
+        ]
+      }
+    };
+
+    let currentRole = 'student';
+
+    function selectRole(role) {
+      currentRole = role;
+      const cfg = portalConfig[role];
+      if (!cfg) return;
+
+      // Update styling variables
+      document.documentElement.style.setProperty('--role-accent', cfg.accent);
+      document.documentElement.style.setProperty('--role-accent-rgb', cfg.accentRGB);
+
+      // Update Right Panel UI
+      document.getElementById('badge-text').textContent = cfg.badge;
+      document.getElementById('login-btn-text').textContent = cfg.btnText;
+      document.getElementById('badge-icon').className = '';
+      document.getElementById('badge-icon').setAttribute('data-lucide', cfg.icon);
+
+      // Update Left Panel UI
+      document.getElementById('left-role-title').textContent = cfg.title;
+      document.getElementById('left-role-desc').textContent = cfg.desc;
+
+      // Update Left Panel Feature Cards
+      const container = document.getElementById('feature-cards-container');
+      container.innerHTML = '';
+      cfg.features.forEach(feat => {
+        container.innerHTML += `
+          <div class="feature-card">
+            <div class="feature-card-icon">
+              <i data-lucide="${feat.icon}"></i>
+            </div>
+            <h4 class="feature-card-title">${feat.title}</h4>
+            <p class="feature-card-desc">${feat.desc}</p>
+          </div>
+        `;
+      });
+
+      // Update switcher active states
+      document.querySelectorAll('.switcher-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById('btn-' + role);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      // Refresh Lucide Icons
+      lucide.createIcons();
+
+      // Update URL without reloading
+      if (window.location.pathname !== cfg.url && !(cfg.url === '/login' && window.location.pathname === '/')) {
+        window.history.pushState({ role: role }, '', cfg.url);
+      }
+    }
+
+    function togglePasswordVisibility() {
+      const pwInput = document.getElementById('password');
+      const eyeIcon = document.getElementById('eye-icon');
+      if (pwInput.type === 'password') {
+        pwInput.type = 'text';
+        eyeIcon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        pwInput.type = 'password';
+        eyeIcon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    function onSubmitForm(event) {
+      document.getElementById('login-spinner').style.display = 'inline-block';
+      document.getElementById('login-btn-text').textContent = 'Authenticating...';
+    }
+
+    // Set correct role based on the current URL
+    window.addEventListener('DOMContentLoaded', () => {
+      const path = window.location.pathname;
+      let role = 'student';
+      if (path.includes('faculty')) role = 'faculty';
+      else if (path.includes('admin') && !path.includes('super')) role = 'admin';
+      else if (path.includes('admission')) role = 'admission_staff';
+      else if (path.includes('super')) role = 'super_admin';
+      
+      selectRole(role);
+    });
+  </script>
+</body>
+</html>

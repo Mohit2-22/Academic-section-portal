@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admission Portal | Royal Technosoft LTD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@100..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside id="app-sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-container">
+        <!-- SVG Logo -->
+        <svg viewBox="0 0 160 56" xmlns="http://www.w3.org/2000/svg" style="height:32px">
+          <text x="0" y="40" font-family="'Sora', sans-serif" font-weight="900" font-size="36" fill="#E8B84B" letter-spacing="-2">ROYAL</text>
+          <line x1="130" y1="44" x2="146" y2="8" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+          <line x1="146" y1="8" x2="156" y2="44" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="sidebar-role-badge" style="background:rgba(245,158,11,0.1);color:var(--accent-admission)">Admission Portal</span>
+    </div>
+    
+    <nav class="sidebar-menu">
+      <button class="nav-item active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+      <button class="nav-item" onclick="switchTab('funnel')"><i data-lucide="funnel"></i><span>Admission Funnel</span></button>
+      <button class="nav-item" onclick="switchTab('inquiries')"><i data-lucide="file-text"></i><span>All Inquiries</span></button>
+      <button class="nav-item" onclick="switchTab('new-inquiry')"><i data-lucide="plus-circle"></i><span>New Inquiry</span></button>
+      <button class="nav-item" onclick="switchTab('reports')"><i data-lucide="bar-chart-2"></i><span>Reports</span></button>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="user-avatar" style="background:linear-gradient(135deg,var(--accent-admission),#b68b31)">AM</div>
+        <div class="user-info">
+          <span class="user-name">{{ username }}</span>
+          <span class="user-role">Admission Staff</span>
+        </div>
+      </div>
+      <a href="/logout" class="btn btn-secondary btn-block" style="text-decoration:none;font-size:12px;margin-top:10px">
+        <i data-lucide="log-out"></i> Logout
+      </a>
+    </div>
+  </aside>
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="main-panel">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="btn-toggle-sidebar" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1 id="page-title" class="header-title">Dashboard</h1>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-primary" onclick="switchTab('new-inquiry')"><i data-lucide="plus"></i> Add Lead</button>
+      </div>
+    </header>
+
+    <div id="content-area" class="content-scroll-container">
+
+      <!-- 1. DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <div class="welcome-banner" style="background:linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(26,26,46,0.6) 100%)">
+          <div>
+            <div class="welcome-name">Admission CRM</div>
+            <div class="welcome-sub">Empowering Future Tech Professionals. Track prospects through the 10-stage pipeline.</div>
+          </div>
+          <div class="welcome-emoji">📊</div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Total Leads</span>
+              <span class="stat-value" id="dash-total">0</span>
+              <span class="stat-sub">All inquiries</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-admission)"><i data-lucide="users"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Admitted</span>
+              <span class="stat-value" id="dash-admitted">0</span>
+              <span class="stat-sub">Conversions</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-admission)"><i data-lucide="check-circle-2"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">In Pipeline</span>
+              <span class="stat-value" id="dash-funnel">0</span>
+              <span class="stat-sub">Active leads</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-admission)"><i data-lucide="funnel"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Lost Leads</span>
+              <span class="stat-value" id="dash-lost">0</span>
+              <span class="stat-sub">Dropped inquiries</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-admission)"><i data-lucide="x-circle"></i></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title"><i data-lucide="bar-chart-2"></i> Funnel Stage Distribution</h2>
+          <div id="stage-distribution" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+        </div>
+      </section>
+
+      <!-- 2. ADMISSION FUNNEL (Kanban Board) -->
+      <section id="tab-funnel" class="tab-pane">
+        <div style="overflow-x:auto">
+          <div class="kanban-board" id="funnel-board"></div>
+        </div>
+      </section>
+
+      <!-- 3. ALL INQUIRIES -->
+      <section id="tab-inquiries" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;gap:12px;margin-bottom:20px">
+            <input type="text" id="inq-search" placeholder="Search by name, mobile..." style="flex:1" oninput="filterInquiries()">
+            <select id="inq-stage-filter" onchange="filterInquiries()" style="width:200px">
+              <option value="">All Stages</option>
+              <option value="lead">Lead</option>
+              <option value="seminar">Seminar</option>
+              <option value="bootcamp">Bootcamp</option>
+              <option value="counselling">Counselling</option>
+              <option value="follow_up_1">Follow-Up 1</option>
+              <option value="follow_up_2">Follow-Up 2</option>
+              <option value="follow_up_3">Follow-Up 3</option>
+              <option value="follow_up_4">Follow-Up 4</option>
+              <option value="follow_up_5">Follow-Up 5</option>
+              <option value="admission">Admission</option>
+            </select>
+          </div>
+          
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Mobile</th>
+                  <th>City</th>
+                  <th>Course Interest</th>
+                  <th>Reference</th>
+                  <th>Stage</th>
+                  <th>Inquiry Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="inquiries-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. NEW INQUIRY -->
+      <section id="tab-new-inquiry" class="tab-pane">
+        <div class="card" style="max-width:640px;margin:0 auto">
+          <h2 class="card-title"><i data-lucide="user-plus"></i> Add Prospect Inquiry</h2>
+          <form id="new-inquiry-form" onsubmit="onSubmitNewInquiry(event)">
+            <div class="form-group-3">
+              <div class="form-group"><label>First Name *</label><input type="text" id="ni-first" required placeholder="Rahul"></div>
+              <div class="form-group"><label>Middle Name</label><input type="text" id="ni-middle" placeholder="Kumar"></div>
+              <div class="form-group"><label>Last Name *</label><input type="text" id="ni-last" required placeholder="Sharma"></div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group"><label>City *</label><input type="text" id="ni-city" required placeholder="Pune"></div>
+              <div class="form-group"><label>Mobile Number *</label><input type="tel" id="ni-mobile" required placeholder="10-digit mobile" pattern="[0-9]{10}"></div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group"><label>Father's Occupation</label><input type="text" id="ni-father-occ" placeholder="Business"></div>
+              <div class="form-group"><label>Father's Mobile</label><input type="tel" id="ni-father-mob" placeholder="9876543210"></div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group"><label>Mother's Occupation</label><input type="text" id="ni-mother-occ" placeholder="Homemaker"></div>
+              <div class="form-group"><label>Mother's Mobile</label><input type="tel" id="ni-mother-mob" placeholder="9876543210"></div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Reference Source *</label>
+                <select id="ni-ref" required onchange="toggleRefOther()">
+                  <option value="">-- Select Source --</option>
+                  <option value="newspaper">Newspaper</option>
+                  <option value="social_media">Social Media Ads</option>
+                  <option value="friends_relatives">Friends / Relatives</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-group"><label>Course of Interest</label><input type="text" id="ni-course" placeholder="e.g. Java Programming"></div>
+            </div>
+            <div class="form-group" id="ni-other-group" style="display:none">
+              <label>Please specify other reference *</label>
+              <input type="text" id="ni-other" placeholder="How did they hear about us?">
+            </div>
+            <div class="form-group">
+              <label>Internal Notes</label>
+              <textarea id="ni-notes" placeholder="Notes about counselling status..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Add Prospect to Funnel</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- 5. REPORTS -->
+      <section id="tab-reports" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3>Pipeline Analytics</h3>
+            <button class="btn btn-secondary" onclick="exportCSV()"><i data-lucide="download"></i> Export Inquiries CSV</button>
+          </div>
+          <div class="dashboard-row">
+            <div class="card">
+              <h4 style="margin-bottom:12px;color:var(--accent-gold)">Conversion by Reference Source</h4>
+              <div id="ref-breakdown" class="timetable-grid"></div>
+            </div>
+            <div class="card">
+              <h4 style="margin-bottom:12px;color:var(--accent-gold)">Monthly Admissions Trend</h4>
+              <div id="monthly-trend" class="timetable-grid"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Inquiry Detail Modal -->
+<div id="inquiry-detail-modal" class="modal-overlay">
+  <div class="modal-content wide">
+    <div class="modal-header">
+      <h2>Prospect Lead Details</h2>
+      <button class="btn-close" onclick="closeModal('inquiry-detail-modal')">×</button>
+    </div>
+    <div id="inquiry-detail-body" style="font-size:14px;line-height:1.6"></div>
+    <div class="modal-actions" style="display:flex;justify-content:flex-end;margin-top:20px">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('inquiry-detail-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="{{ url_for('static', filename='js/admission.js') }}"></script>
+</body>
+</html>

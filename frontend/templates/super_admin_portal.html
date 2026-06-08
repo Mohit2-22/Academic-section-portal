@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super Admin | Royal Technosoft LTD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Sora:wght@100..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside id="app-sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-container">
+        <!-- SVG Logo -->
+        <svg viewBox="0 0 160 56" xmlns="http://www.w3.org/2000/svg" style="height:32px">
+          <text x="0" y="40" font-family="'Sora', sans-serif" font-weight="900" font-size="36" fill="#E8B84B" letter-spacing="-2">ROYAL</text>
+          <line x1="130" y1="44" x2="146" y2="8" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+          <line x1="146" y1="8" x2="156" y2="44" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="sidebar-role-badge" style="background:rgba(244,63,94,0.1);color:var(--accent-superadmin)">Super Admin</span>
+    </div>
+    
+    <nav class="sidebar-menu">
+      <button class="nav-item active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+      <button class="nav-item" onclick="switchTab('users')"><i data-lucide="users-2"></i><span>User Management</span></button>
+      <button class="nav-item" onclick="switchTab('fees')"><i data-lucide="indian-rupee"></i><span>Fee Overview</span></button>
+      <button class="nav-item" onclick="switchTab('reports')"><i data-lucide="bar-chart-2"></i><span>Reports</span></button>
+      <button class="nav-item" onclick="switchTab('audit')"><i data-lucide="shield"></i><span>Audit Log</span></button>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="user-avatar" style="background:linear-gradient(135deg,var(--accent-superadmin),#b68b31)">👑</div>
+        <div class="user-info">
+          <span class="user-name">{{ username }}</span>
+          <span class="user-role">Super Admin</span>
+        </div>
+      </div>
+      <a href="/logout" class="btn btn-secondary btn-block" style="text-decoration:none;font-size:12px;margin-top:10px">
+        <i data-lucide="log-out"></i> Logout
+      </a>
+    </div>
+  </aside>
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="main-panel">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="btn-toggle-sidebar" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1 id="page-title" class="header-title">Super Admin</h1>
+      </div>
+    </header>
+
+    <div id="content-area" class="content-scroll-container">
+
+      <!-- 1. DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <div class="welcome-banner" style="background:linear-gradient(135deg, rgba(244,63,94,0.1) 0%, rgba(26,26,46,0.6) 100%)">
+          <div>
+            <div class="welcome-name">System Control Center</div>
+            <div class="welcome-sub">Empowering Future Tech Professionals. Complete system oversight & administrative management.</div>
+          </div>
+          <div class="welcome-emoji">👑</div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Total Users</span>
+              <span class="stat-value" id="sa-total-users">0</span>
+              <span class="stat-sub" id="sa-active-users">Active: 0</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-superadmin)"><i data-lucide="users-2"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Total Revenue</span>
+              <span class="stat-value" id="sa-revenue">₹0</span>
+              <span class="stat-sub" id="sa-outstanding">Outstanding: ₹0</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-superadmin)"><i data-lucide="trending-up"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Active Batches</span>
+              <span class="stat-value" id="sa-batches">0</span>
+              <span class="stat-sub">Running now</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-superadmin)"><i data-lucide="users"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Certificates Issued</span>
+              <span class="stat-value" id="sa-certs">0</span>
+              <span class="stat-sub">Total issued</span>
+            </div>
+            <div class="stat-icon-wrapper" style="color:var(--accent-superadmin)"><i data-lucide="award"></i></div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="users"></i> Users by Role</h2>
+            <div id="role-breakdown" class="timetable-grid"></div>
+          </div>
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="activity"></i> System Logs</h2>
+            <div id="system-health" class="timetable-grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. USERS -->
+      <section id="tab-users" class="tab-pane">
+        <div class="card">
+          <div style="display:flex;gap:12px;margin-bottom:20px">
+            <input type="text" id="user-search" placeholder="Search by name, email, role..." style="flex:1" oninput="filterUsers()">
+            <select id="user-role-filter" onchange="filterUsers()" style="width:200px">
+              <option value="">All Roles</option>
+              <option value="super_admin">Super Admin</option>
+              <option value="admin">Admin</option>
+              <option value="faculty">Faculty</option>
+              <option value="admission_staff">Admission Staff</option>
+              <option value="student">Student</option>
+            </select>
+            <button class="btn btn-primary" onclick="openModal('add-user-modal')"><i data-lucide="plus"></i> Create User</button>
+          </div>
+          
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Created At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sa-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. FEE OVERVIEW -->
+      <section id="tab-fees" class="tab-pane">
+        <div class="card">
+          <h2 class="card-title"><i data-lucide="indian-rupee"></i> Consolidated Fee Ledgers</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Course</th>
+                  <th>Total Due</th>
+                  <th>Paid</th>
+                  <th>Outstanding</th>
+                  <th>Status</th>
+                  <th>Due Date</th>
+                </tr>
+              </thead>
+              <tbody id="sa-fees-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. REPORTS -->
+      <section id="tab-reports" class="tab-pane">
+        <div class="card">
+          <h2 class="card-title"><i data-lucide="bar-chart-2"></i> Revenue & Occupancy Reports</h2>
+          <div class="dashboard-row">
+            <div class="card">
+              <h4 style="margin-bottom:12px;color:var(--accent-gold)">Monthly Revenue Trend</h4>
+              <div id="sa-revenue-trend" style="height:250px;width:100%"><canvas id="sa-rev-chart"></canvas></div>
+            </div>
+            <div class="card">
+              <h4 style="margin-bottom:12px;color:var(--accent-gold)">Batch Occupancy Rate</h4>
+              <div id="sa-occupancy-chart" style="height:250px;width:100%"><canvas id="sa-occ-chart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. AUDIT LOG -->
+      <section id="tab-audit" class="tab-pane">
+        <div class="card">
+          <h2 class="card-title"><i data-lucide="shield"></i> Security Audit Trail</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>System Target</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="sa-audit-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="add-user-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Create System User</h2><button class="btn-close" onclick="closeModal('add-user-modal')">×</button></div>
+    <form id="add-user-form" onsubmit="onSubmitAddUser(event)">
+      <div class="form-group"><label>Username *</label><input type="text" id="usr-name" required placeholder="staff.member"></div>
+      <div class="form-group"><label>Email Address *</label><input type="email" id="usr-email" required placeholder="staff@institute.com"></div>
+      <div class="form-group">
+        <label>System Role *</label>
+        <select id="usr-role" required>
+          <option value="admin">Admin</option>
+          <option value="faculty">Faculty</option>
+          <option value="admission_staff">Admission Staff</option>
+          <option value="super_admin">Super Admin</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Password *</label><input type="text" id="usr-pw" required value="user123"></div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('add-user-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="reset-password-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Reset Security Password</h2><button class="btn-close" onclick="closeModal('reset-password-modal')">×</button></div>
+    <form id="reset-password-form" onsubmit="onSubmitResetPassword(event)">
+      <input type="hidden" id="reset-usr-id">
+      <div class="form-group"><label>New Password *</label><input type="text" id="reset-usr-pw" required value="newpass123"></div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('reset-password-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Reset Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="{{ url_for('static', filename='js/super_admin.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0F172A" />
+    <title>Offline - InstitutePulse</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, #0F172A, #111827);
+        color: #F1F5F9;
+        font-family: 'DM Sans', sans-serif;
+      }
+      .card {
+        width: min(560px, calc(100vw - 32px));
+        padding: 32px;
+        border-radius: 24px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+      }
+      h1 { font-family: 'Sora', sans-serif; margin: 0 0 8px; }
+      p { color: #94A3B8; line-height: 1.6; }
+      a { display: inline-block; margin-top: 20px; color: white; text-decoration: none; background: linear-gradient(135deg, #6366F1, #4338CA); padding: 12px 18px; border-radius: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>You are offline</h1>
+      <p>Timetable, downloaded materials, certificate list, and notification history are still available from the app cache once you reconnect.</p>
+      <a href="/">Go back to app</a>
+    </div>
+  </body>
+  </html>
