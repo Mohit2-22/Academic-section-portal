@@ -109,7 +109,6 @@ Academic-module/
 
 **Developed by:**
 - **Mohit Prajapati**
-- **Aadarsh Singh**
 
 © 2026 GUNI Academic Portal. All rights reserved. No part of this project may be reproduced or transmitted in any form without the prior written permission of the developers.
 
